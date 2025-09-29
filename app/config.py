@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """
     Настройки бота, загружаемые из переменных окружения.
 
-    Атрибуты:
+    Поля:
         BOT_TOKEN (str): Токен Telegram-бота.
     """
 
