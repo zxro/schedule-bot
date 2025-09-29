@@ -19,7 +19,7 @@ async def main():
 
     register_handlers(dp)
 
-    print("Бот запущен!")
+    print("Бот запущен!!")
 
     await dp.start_polling(bot)
 
