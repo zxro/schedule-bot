@@ -4,14 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+## @brief Найстрйоки бота, загружаемые из переменных окружения
+#  @var BOT_TOKEN Токен Telegram-бота
 class Settings(BaseSettings):
-    """
-    Настройки бота, загружаемые из переменных окружения.
-
-    Поля:
-        BOT_TOKEN (str): Токен Telegram-бота.
-    """
-
     BOT_TOKEN: str = Field(..., env='BOT_TOKEN')
 
 settings = Settings()
