@@ -3,14 +3,13 @@ from aiogram.types import InlineKeyboardButton
 
 def choose_course_keyboard():
     """
-    Создает inline-клавиатуру с выбором курса от 1 до 5.
+    @brief Создает inline-клавиатуру с выбором курса от 1 до 5.
 
-    Кнопки:
+    @details Создаёт кнопки:
         - "Курс 1", "Курс 2", ..., "Курс 5"
         Каждая кнопка содержит callback_data вида "course_<номер>"
 
-    Возвращает:
-        InlineKeyboardMarkup: Объект inline-клавиатуры для отправки пользователю.
+    @return InlineKeyboardMarkup: Объект inline-клавиатуры для отправки пользователю.
     """
 
     kb = InlineKeyboardBuilder()
