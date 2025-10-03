@@ -57,7 +57,7 @@ async def sync_schedule(message: Message):
             logger.info("Синхронизация ПМиК-37 завершена")
             await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, "Синхронизация для ПМиК-37 завершена ⏳")
         except Exception as e:
-            await message.bot.send_message(chat_id, f"Ошибка при синхронизации: {str(e)[:3500]}")
+            await message.bot.send_message(chat_id, f"Ошибка при синхронизации: {str(e)[:1000]}")
             logger.error(f"Ошибка при синхронизации ПМиК-37: {e}")
 
     asyncio.create_task(background_sync())

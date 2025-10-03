@@ -25,7 +25,8 @@ async def main():
     logger = logging.getLogger("my_app")
     logger.setLevel(logging.INFO)
 
-    formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    formatter = logging.Formatter("[%(levelname)s], message: %(message)s,"
+                                  " filename: %(filename)s:%(lineno)d, funcName: %(funcName)s()")
 
     telegram_handler = TelegramHandler(bot, chat_id)
     telegram_handler.setFormatter(formatter)
@@ -39,7 +40,6 @@ async def main():
 
     register_handlers(dp)
 
-    logger.info("bot start")
     await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, text="Бот успешно запущен")
     await dp.start_polling(bot, skip_updates=True)
 
