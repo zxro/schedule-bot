@@ -142,14 +142,14 @@ async def show_schedule(message: Message):
             minus_lessons = [l for l in day_lessons if l.week_mark in ("every", "minus")]
 
             if plus_lessons:
-                texts["plus"] += f"🗓 {weekday_names[int(wd)]}:\n"
+                texts["plus"] += f"🗓 {weekday_names[wd]}:\n"
                 texts["plus"] += "\n".join(format_lesson(l) for l in plus_lessons) + "\n\n"
 
             if minus_lessons:
-                texts["minus"] += f"🗓 {weekday_names[int(wd)]}:\n"
+                texts["minus"] += f"🗓 {weekday_names[wd]}:\n"
                 texts["minus"] += "\n".join(format_lesson(l) for l in minus_lessons) + "\n\n"
 
-            texts["all"] += f"🗓 {weekday_names[int(wd)]}:\n"
+            texts["all"] += f"🗓 {weekday_names[wd]}:\n"
             texts["all"] += "\n".join(format_lesson(l) for l in day_lessons) + "\n\n"
 
         await message.answer(texts["plus"])
