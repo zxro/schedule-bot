@@ -206,9 +206,9 @@ async def run_full_sync_for_group(group_name: str, type_idx: int = 0):
             b. Получаем JSON расписания через `client.fetch_timetable_for_group(group_name, type_idx)`.
             c. Если API вернул словарь с ключом "message" — считаем, что данных нет и возвращаем 0.
             d. Преобразуем JSON в список записей через `extract_lessons_from_timetable_json`.
-            e. Вставляем или обновляем уроки в БД через `upsert_lessons_for_group`.
+            e. Вставляем или обновляем пары в БД через `upsert_lessons_for_group`.
             f. Фиксируем изменения с помощью `session.commit()`.
-            g. Возвращаем количество вставленных/обновленных уроков.
+            g. Возвращаем количество вставленных/обновленных пар.
         4. В блоке finally закрываем клиента `TimetableClient`.
         """
     client = TimetableClient()
