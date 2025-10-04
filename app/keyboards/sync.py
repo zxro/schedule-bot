@@ -1,11 +1,11 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 
 def get_sync_keyboard():
-    kb = InlineKeyboardMarkup(
+    kb = ReplyKeyboardMarkup(
         keyboard=[
-            [InlineKeyboardButton(text="Синхронизация расписания для ПМиК-37")],
-            [InlineKeyboardButton(text="Показать расписание ПМиК-37")]
+            [KeyboardButton(text="Синхронизация расписания для ПМиК-37")],
+            [KeyboardButton(text="Показать расписание ПМиК-37")]
         ],
         resize_keyboard=True
     )
