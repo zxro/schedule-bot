@@ -7,3 +7,5 @@ def get_admin_kb():
         ],
         resize_keyboard=True
     )
+
+    return keyboard

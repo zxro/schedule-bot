@@ -1,12 +1,14 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 import asyncio
 import logging
 from app.config import settings
 from app.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.extracting_schedule.worker import run_full_sync_for_group, get_schedule_for_group
-from app.keyboards.sync_kb import get_sync_keyboard
+from app.keyboards.faculty_kb import faculty_keyboard
+from app.keyboards.sync_kb import get_type_sync_kb
+from collections import defaultdict
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -25,9 +27,22 @@ async def sync_chat(message: Message):
     message : aiogram.types.Message
         Сообщение от пользователя (админа).
     """
-    await message.answer(text="Выберите для кого синхронизировать расписание", reply_markup=get_sync_keyboard())
+    await message.answer(text="Выберите для кого синхронизировать расписание", reply_markup=get_type_sync_kb())
 
-@router.message(F.text=="Синхронизация расписания для всех")
+@router.callback_query(F.data=="university")
+async def sync_university(callback: CallbackQuery):
+    pass
+
+@router.callback_query(F.data=="faculty")
+async def sync_faculty(callback: CallbackQuery):
+    await callback.message.edit_text(
+        text="Новый текст после нажатия кнопки",
+        reply_markup=faculty_keyboard()
+    )
+
+@router.callback_query(F.data=="group")
+async def sync_group(callback: CallbackQuery):
+    pass
 
 
 @router.message(F.text=="Синхронизация расписания для ПМиК-37")
@@ -65,9 +80,6 @@ async def sync_schedule(message: Message):
             logger.error(f"Ошибка при синхронизации ПМиК-37: {e}")
 
     asyncio.create_task(background_sync())
-
-from collections import defaultdict
-from aiogram.types import Message
 
 @router.message(F.text == "Показать расписание ПМиК-37")
 async def show_schedule(message: Message):
@@ -178,5 +190,5 @@ async def show_keyboard(message: Message):
         Сообщение от пользователя.
     """
 
-    keyboard = get_sync_keyboard()
+    keyboard = get_type_sync_kb()
     await message.answer("Выберите действие:", reply_markup=keyboard)

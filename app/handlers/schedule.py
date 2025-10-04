@@ -1,5 +1,5 @@
 from aiogram import Router, types, F
-from app.keyboards.courses_kb import choose_course_keyboard
+from app.keyboards.faculty_kb import choose_course_keyboard
 
 router = Router()
 
