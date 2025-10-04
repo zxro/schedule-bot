@@ -14,5 +14,5 @@ async def cmd_start(message: types.Message):
     @param message (types.Message): Объект сообщения Telegram.
     """
 
-    await message.answer(text="Привет! Я твой бот, буду помогать с раписанием 🤖",
+    await message.answer(text="Привет! Я твой бот, буду помогать с раcписанием 🤖",
                          reply_markup=start_keyboard())

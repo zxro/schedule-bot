@@ -183,6 +183,81 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
 
     logger.info("Синхронизация завершена. Групп обработано: %d", total)
 
+
+async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None, type_idx: int = 0):
+    """
+    Синхронизация расписания для всех групп определенного факультета.
+
+    Логика работы:
+    1. Получает список всех групп из API
+    2. Фильтрует группы по указанному факультету
+    3. Для каждой группы факультета:
+        - Создает/проверяет запись группы в БД
+        - Загружает расписание через API
+        - Парсит и сохраняет данные в БД
+
+    Параметры:
+        faculty_name (str): Название факультета для синхронизации
+        limit_groups (int, optional): Ограничение количества групп для обработки
+        type_idx (int, optional): Тип расписания (по умолчанию 0)
+
+    Возвращает:
+        int: Количество обработанных групп
+    """
+    client = TimetableClient()
+    async with AsyncSessionLocal() as session:
+        groups_json = await client.fetch_groups()
+        groups = groups_json.get("groups", []) if isinstance(groups_json, dict) else groups_json
+
+        if not groups:
+            logger.warning("Список групп пуст")
+            await client.close()
+            return 0
+
+        # Фильтруем группы по факультету
+        faculty_groups = [g for g in groups if g.get("facultyName") == faculty_name]
+
+        if not faculty_groups:
+            logger.warning("Не найдено групп для факультета %s", faculty_name)
+            await client.close()
+            return 0
+
+        total = 0
+        for idx, g in enumerate(faculty_groups):
+            if limit_groups and idx >= limit_groups:
+                break
+
+            group_name = g.get("groupName")
+            if not group_name:
+                continue
+
+            try:
+                group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
+
+                tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
+
+                if isinstance(tt_json, dict) and tt_json.get("message"):
+                    logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
+                    continue
+
+                records = extract_lessons_from_timetable_json(group_name, tt_json)
+
+                inserted = await upsert_lessons_for_group(session, group_obj, records)
+                await session.commit()
+                total += 1
+                logger.info("Обработана группа %s факультета %s -> вставлено %d пар",
+                            group_name, faculty_name, inserted)
+
+            except Exception as e:
+                logger.error("Ошибка при обработке группы %s факультета %s: %s",
+                             group_name, faculty_name, e)
+                await session.rollback()
+
+        await client.close()
+        logger.info("Синхронизация для факультета %s завершена. Групп обработано: %d",
+                    faculty_name, total)
+        return total
+
 async def run_full_sync_for_group(group_name: str, type_idx: int = 0):
     """
     Полная синхронизация расписания для одной группы.
