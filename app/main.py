@@ -1,9 +1,8 @@
 import asyncio
-import logging
 
 from aiogram import Bot, Dispatcher
 from app.config import settings
-from app.custom_logging.TelegramHandler import TelegramHandler
+from app.custom_logging.setup import setup_logging
 from app.handlers.init_handlers import register_handlers
 
 bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
@@ -20,26 +19,11 @@ async def main():
         - Запускает логирование
     """
 
-    chat_id = settings.TELEGRAM_LOG_CHAT_ID
-
-    logger = logging.getLogger("my_app")
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter("[%(levelname)s], message: %(message)s,"
-                                  " filename: %(filename)s:%(lineno)d, funcName: %(funcName)s()")
-
-    telegram_handler = TelegramHandler(bot, chat_id)
-    telegram_handler.setFormatter(formatter)
-    telegram_handler.setLevel(logging.WARNING)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(telegram_handler)
-    logger.addHandler(console_handler)
+    logger = setup_logging(bot)
 
     register_handlers(dp)
 
+    logger.info("Бот успешно запущен")
     await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, text="Бот успешно запущен")
     await dp.start_polling(bot, skip_updates=True)
 

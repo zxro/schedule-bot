@@ -4,11 +4,12 @@ from aiogram.types import Message
 import asyncio
 import logging
 from app.config import settings
+from app.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.extracting_schedule.worker import run_full_sync_for_group, get_schedule_for_group
 from app.keyboards.sync import get_sync_keyboard
 
 router = Router()
-logger = logging.getLogger("my_app")
+logger = logging.getLogger(__name__)
 
 @router.message(F.text=="Запустить синхронизацию")
 async def sync_chat(message: Message):
@@ -55,9 +56,9 @@ async def sync_schedule(message: Message):
             await run_full_sync_for_group("ПМиК-37")
             await message.bot.send_message(chat_id, "Синхронизация завершена ✅")
             logger.info("Синхронизация ПМиК-37 завершена")
-            await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, "Синхронизация для ПМиК-37 завершена ⏳")
+            await send_chat_info_log(bot, "Синхронизация для ПМиК-37 завершена ⏳")
         except Exception as e:
-            await message.bot.send_message(chat_id, f"Ошибка при синхронизации: {str(e)[:1000]}")
+            await send_chat_info_log(bot, f"Ошибка при синхронизации: {str(e)[:1000]}")
             logger.error(f"Ошибка при синхронизации ПМиК-37: {e}")
 
     asyncio.create_task(background_sync())
@@ -156,7 +157,7 @@ async def show_schedule(message: Message):
         await message.answer(texts["all"])
 
     except Exception as e:
-        await message.answer(f"Ошибка при получении расписания: {e}")
+        await message.answer(f"Ошибка при получении расписания: {str(e)[:1000]}")
         logger.error(f"Ошибка при выводе расписания ПМиК-37: {e}")
 
 @router.message(Command("menu"))

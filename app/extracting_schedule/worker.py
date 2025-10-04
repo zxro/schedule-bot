@@ -17,6 +17,7 @@
 
 import logging
 from typing import List
+
 from app.extracting_schedule.fetcher import TimetableClient
 from app.extracting_schedule.parser import extract_lessons_from_timetable_json
 from app.database.dp import AsyncSessionLocal
@@ -51,7 +52,7 @@ async def ensure_faculty_and_group(session: AsyncSession, faculty_name: str, gro
         if not faculty:
             faculty = Faculty(name=faculty_name)
             session.add(faculty)
-            await session.flush()  # чтобы получить id
+            await session.flush()
 
     q = await session.execute(select(Group).where(Group.group_name == group_name))
     group = q.scalars().first()
@@ -173,12 +174,13 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                 inserted = await upsert_lessons_for_group(session, group_obj, records)
                 await session.commit()
                 total += 1
-                logger.info("Обработанна группа %s -> вставлено %d пар", group_name, inserted)
+                logger.info("Обработана группа %s -> вставлено %d пар", group_name, inserted)
             except Exception as e:
                 logger.error("Ошибка при обработке группы %s: %s", group_name, e)
                 await session.rollback()
 
         await client.close()
+
     logger.info("Синхронизация завершена. Групп обработано: %d", total)
 
 async def run_full_sync_for_group(group_name: str, type_idx: int = 0):

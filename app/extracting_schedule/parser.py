@@ -40,7 +40,8 @@ def parse_lesson_time_data(lesson_time_data: List[Dict[str, str]]) -> Dict[int, 
             end = time.fromisoformat(lt["end"])
             lesson_time_map[idx] = {"start": start, "end": end}
         except Exception as e:
-            logger.error("Ошибка парсинга времени пары: %s", e)
+            logger.error("Ошибка извлечения времени пары: %s", e)
+
     return lesson_time_map
 
 def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[str, Any]):
@@ -131,6 +132,7 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
                     date_obj = datetime.strptime(date_str, "%d.%m.%Y").date()
                 except Exception:
                     logger.error("Не удалось извлечь дату %s", date_str)
+                    pass
 
             lesson_key = (weekday, lesson_number, subject, professors, rooms, week_mark, ttype)
 
