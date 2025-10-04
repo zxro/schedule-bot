@@ -6,12 +6,12 @@ import logging
 from app.config import settings
 from app.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.extracting_schedule.worker import run_full_sync_for_group, get_schedule_for_group
-from app.keyboards.sync import get_sync_keyboard
+from app.keyboards.sync_kb import get_sync_keyboard
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-@router.message(F.text=="Запустить синхронизацию")
+@router.message(F.text=="Синхронизировать расписание")
 async def sync_chat(message: Message):
     """
     Обработчик команды кнопки "Запустить синхронизацию".
@@ -25,7 +25,10 @@ async def sync_chat(message: Message):
     message : aiogram.types.Message
         Сообщение от пользователя (админа).
     """
-    await message.answer(text="Выберите", reply_markup=get_sync_keyboard())
+    await message.answer(text="Выберите для кого синхронизировать расписание", reply_markup=get_sync_keyboard())
+
+@router.message(F.text=="Синхронизация расписания для всех")
+
 
 @router.message(F.text=="Синхронизация расписания для ПМиК-37")
 async def sync_schedule(message: Message):
