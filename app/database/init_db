@@ -45,7 +45,7 @@ END$$;
 CREATE TABLE lessons (
     id SERIAL PRIMARY KEY,
     group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    date DATE,                       -- конкретная дата (если есть)
+    date DATE,                       -- конкретная дата
     weekday INT,                     -- день недели (1=Пн ... 7=Вс)
     lesson_number INT,               -- номер пары
     start_time TIME,                 -- время начала
