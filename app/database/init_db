@@ -1,13 +1,13 @@
-CREATE DATABASE "TimetableTvSU_db"
+CREATE DATABASE "name_db"
     WITH
-    OWNER = postgres
+    OWNER = owner_name
     ENCODING = 'UTF8'
     LC_COLLATE = 'ru_RU.UTF-8'
     LC_CTYPE = 'ru_RU.UTF-8'
     TEMPLATE = template0
     CONNECTION LIMIT = -1;
 
-\c "TimetableTvSU_db";
+\c "name_db";
 
 -- Таблица факультетов
 CREATE TABLE faculties (
@@ -50,7 +50,7 @@ CREATE TABLE lessons (
     start_time TIME,                 -- время начала
     end_time TIME,                   -- время конца
     subject TEXT,                    -- название предмета
-    professors TEXT,                  -- преподаватель
+    professors TEXT,                 -- преподаватель
     rooms TEXT,                      -- аудитория
     week_mark weekmarkenum,          -- "every", "plus", "minus"
     type VARCHAR,                    -- тип расписания (classes/exams/...)
