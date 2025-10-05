@@ -75,7 +75,7 @@
 
 **Ограничения:**
 
-* Уникальность `(group_id, date, lesson_number, week_mark, type)` предотвращает дубли.
+* Уникальность `(group_id, weekday, lesson_number, subject, professors, rooms, week_mark, type, start_time, end_time)` предотвращает дубли.
 * При удалении группы все её занятия удаляются (`ON DELETE CASCADE`).
 
 ---
