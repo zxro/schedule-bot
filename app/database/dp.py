@@ -14,10 +14,22 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 
-engine = create_async_engine(settings.DB_TIMETABLE_URL, future=True, echo=False, pool_size=10, max_overflow=20)
+engine = create_async_engine(
+    settings.DB_TIMETABLE_URL,        # строка подключения к PostgreSQL
+    echo=False,                       # echo=True = логировать SQL-запросы в консоль
+    future=True,                      # новый API SQLAlchemy 2.0
+    poolclass=AsyncAdaptedQueuePool,  # включаем пул соединений
+    pool_size=10,                     # держим до 10 соединений открытыми
+    max_overflow=20                   # создаётся ещё 20 соединений при пике нагрузки
+)
 
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
 
 async def get_session() -> AsyncSession:
     """

@@ -1,3 +1,14 @@
+"""
+Реализует обработчики (aiogram Router) для просмотра расписания студентами.
+
+1. Выбор факультета
+2. Выбор группы
+3. Выбор типа недели (чётная, нечётная, полное)
+4. Форматирование и вывод расписания
+
+Ошибки при формировании расписания фиксируются через logging.
+"""
+
 import logging
 from collections import defaultdict
 
@@ -16,11 +27,28 @@ logger = logging.getLogger(__name__)
 
 @router.message(F.text=="Просмотреть расписание")
 async def get_schedule_start(message: Message, state: FSMContext):
+    """
+    Начало сценария просмотра расписания.
+
+    Действия:
+    - Отправляет клавиатуру факультетов.
+    - Устанавливает состояние choice_faculty.
+    """
+
     await message.answer("Выберите факультет:", reply_markup=faculty_keyboard)
     await state.set_state(ShowSheduleStates.choice_faculty)
 
 @router.callback_query(StateFilter(ShowSheduleStates.choice_faculty), F.data.startswith("faculty:"))
 async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
+    """
+    Обработка выбора факультета.
+
+    Действия:
+    - Определяет название факультета по сокращению.
+    - Показывает клавиатуру с группами.
+    - Если групп нет → сообщение об ошибке.
+    """
+
     faculty_name = abbr_faculty[callback.data.split(":")[1]]
     groups_kb = faculty_keyboards.get(faculty_name)
     if not groups_kb:
@@ -31,6 +59,14 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(StateFilter(ShowSheduleStates.choice_group), F.data.startswith("group:"))
 async def choice_type_week(callback: CallbackQuery, state: FSMContext):
+    """
+    Обработка выбора группы.
+
+    Действия:
+    - Сохраняет выбранную группу в состояние.
+    - Просит выбрать тип расписания (неделя plus/minus/full).
+    """
+
     group_name = callback.data.split(":")[1]
     await state.update_data(group_name=group_name)
     await state.set_state(ShowSheduleStates.choice_week)
@@ -40,8 +76,21 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(StateFilter(ShowSheduleStates.choice_week), F.data.startswith("week:"))
 async def show_schedule(callback: CallbackQuery, state: FSMContext):
     """
-    Обработчик вывода расписания группы пользователю в зависимости от выбранной недели.
+    Вывод расписания для выбранной группы.
+
+    Аргументы:
+    callback : aiogram.types.CallbackQuery
+        Данные callback-кнопки.
+    state : FSMContext
+        Контекст FSM.
+
+    Логика:
+    - Загружает расписание из БД.
+    - Группирует занятия по дням.
+    - Фильтрует в зависимости от выбранной недели.
+    - Форматирует текст.
     """
+
     state_data = await state.get_data()
     group_name = state_data.get("group_name")
 

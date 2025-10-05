@@ -1,7 +1,21 @@
+"""
+Формирование inline-клавиатур для выбора факультетов и групп на основе данных API.
+Модуль загружает список групп (и их факультетов) из внешнего сервиса (settings.TIMETABLE_API_BASE + "/groups")
+и формирует:
+    - faculty_keyboard: клавиатуру с кнопками для выбора факультета (callback_data -> "faculty:<ABBR>")
+    - faculty_keyboards: словарь {facultyName: InlineKeyboardMarkup} с клавиатурами групп внутри факультета
+
+- В файле хранится соответствие полного названия факультета ↔ его аббревиатура (faculty_abbr / abbr_faculty).
+- При отсутствии данных от API функции возвращают None и логируют ошибку.
+- Кнопки "Отмена" добавлены и имеют callback_data в формате "cancel_*" для единой обработки.
+"""
+
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 from app.config import settings
 import logging
+
+logger = logging.getLogger(__name__)
 
 faculty_abbr = {
     "Математический факультет": "MATH",
@@ -41,7 +55,14 @@ abbr_faculty = {
 
 
 def load_groups_data():
-    """Загружает данные групп из API"""
+    """
+    Загружает данные групп из внешнего API (settings.TIMETABLE_API_BASE + "/groups").
+
+    Возвращает:
+        dict: JSON-ответ от сервера (обычно содержит ключ 'groups'), если успешно.
+        None: при ошибке (в этом случае ошибка залогирована).
+    """
+
     url = settings.TIMETABLE_API_BASE + "/groups"
     try:
         response = requests.get(url, timeout=10)
@@ -52,17 +73,35 @@ def load_groups_data():
 
 
 def create_faculty_keyboard():
-    """Создает клавиатуру с факультетами"""
+    """
+    Создаёт InlineKeyboardMarkup для выбора факультета.
+
+    Логика:
+        - Загружает данные через load_groups_data().
+        - Берёт уникальные названия факультетов из data['groups'].
+        - Для каждого факультета создаёт кнопку с callback_data вида "faculty:<ABBR>".
+        - Добавляет строку с кнопкой отмены ("❌ Отмена", callback_data="cancel_faculty_sync").
+        - Если API вернёт факультет, которого нет в `faculty_abbr`, то такая запись пропускается и логируется.
+          Это предотвращает KeyError при формировании callback_data.
+
+    Возвращает:
+        InlineKeyboardMarkup | None:
+            - InlineKeyboardMarkup — если данные успешно загружены и найдены сопоставления аббревиатур;
+            - None — если не удалось получить данные.
+    """
     data = load_groups_data()
     if data is None:
         return None
 
     faculties = sorted(set(group['facultyName'] for group in data['groups']))
 
-    keyboard = [
-        [InlineKeyboardButton(text=faculty, callback_data=f"faculty:{faculty_abbr[faculty]}")]
-        for faculty in faculties
-    ]
+    keyboard = []
+    for faculty in faculties:
+        abbr = faculty_abbr.get(faculty)
+        if not abbr:
+            logger.warning("Факультет '%s' не найден в faculty_abbr — пропуск этого факультета.", faculty)
+            continue
+        keyboard.append([InlineKeyboardButton(text=faculty, callback_data=f"faculty:{abbr}")])
 
     keyboard.append([InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_sync")])
 
@@ -70,7 +109,22 @@ def create_faculty_keyboard():
 
 
 def create_courses_keyboard():
-    """Создает клавиатуры с группами для каждого факультета"""
+    """
+    Создаёт словарь клавиатур для групп по факультетам.
+
+    Логика:
+        - Загружает данные через load_groups_data().
+        - Группирует группы по полному названию факультета.
+        - Для каждого факультета формируется InlineKeyboardMarkup, в котором кнопки с группами
+          расположены в строках по 3 элемента.
+        - В конце каждой клавиатуры добавляется кнопка "❌ Отмена" с callback_data="cancel_group_sync".
+
+    Возвращает:
+        dict[str, InlineKeyboardMarkup] | None:
+            - словарь: ключ — полное название факультета, значение — клавиатура групп;
+            - None — если не удалось получить данные.
+    """
+
     data = load_groups_data()
     if data is None:
         return None
@@ -143,9 +197,24 @@ else:
     sport_keyboard = None
 
 def get_faculty_groups_keyboard(faculty_name):
-    """Возвращает клавиатуру с группами для указанного факультета"""
+    """
+    Возвращает клавиатуру с группами для указанного факультета.
+
+    Аргументы:
+        faculty_name (str) — полное название факультета, как оно приходит из API / как используется в faculty_keyboards.
+
+    Возвращает:
+        InlineKeyboardMarkup | None — соответствующая клавиатура или None, если данные не загружены
+        или факультет не найден.
+    """
+
     return faculty_keyboards.get(faculty_name) if faculty_keyboards else None
 
 def are_keyboards_loaded():
-    """Проверяет, успешно ли загружены клавиатуры"""
+    """
+    Проверяет, успешно ли загружены клавиатуры при импорте модуля.
+
+    Возвращает:
+        bool — True, если и faculty_keyboard, и faculty_keyboards не None.
+    """
     return faculty_keyboard is not None and faculty_keyboards is not None
