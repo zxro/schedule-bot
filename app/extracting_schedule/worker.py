@@ -85,36 +85,43 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
 
     type_name = records[0].get("type")
 
-    await session.execute(
-        delete(Lesson)
-        .where(Lesson.group_id == group_obj.id)
-        .where(Lesson.type == type_name)
-    )
-    await session.flush()
-
-    count = 0
-    for rec in records:
-        wm = rec.get("week_mark") or None
-        if wm not in (None, "every", "plus", "minus"):
-            wm = None
-
-        lesson = Lesson(
-            group_id=group_obj.id,
-            date=rec.get("date"),
-            weekday=rec.get("weekday"),
-            lesson_number=rec.get("lesson_number"),
-            start_time=rec.get("start_time"),
-            end_time=rec.get("end_time"),
-            subject=rec.get("subject"),
-            professors=rec.get("professors"),
-            rooms=rec.get("rooms"),
-            week_mark=wm,
-            type=rec.get("type"),
-            raw_json=rec.get("raw")
+    try:
+        await session.execute(
+            delete(Lesson)
+            .where(Lesson.group_id == group_obj.id)
+            .where(Lesson.type == type_name)
         )
-        session.add(lesson)
-        count += 1
-    return count
+        await session.flush()
+
+        count = 0
+        for rec in records:
+            wm = rec.get("week_mark") or None
+            if wm not in (None, "every", "plus", "minus"):
+                wm = None
+
+            lesson = Lesson(
+                group_id=group_obj.id,
+                date=rec.get("date"),
+                weekday=rec.get("weekday"),
+                lesson_number=rec.get("lesson_number"),
+                start_time=rec.get("start_time"),
+                end_time=rec.get("end_time"),
+                subject=rec.get("subject"),
+                professors=rec.get("professors"),
+                rooms=rec.get("rooms"),
+                week_mark=wm,
+                type=rec.get("type"),
+                raw_json=rec.get("raw")
+            )
+            session.add(lesson)
+            count += 1
+
+        return count
+
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении пар для группы group_id = {group_obj.id}: {e}")
+        await session.rollback()
+        raise
 
 
 async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
@@ -173,15 +180,18 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
 
                 inserted = await upsert_lessons_for_group(session, group_obj, records)
                 await session.commit()
+
                 total += 1
                 logger.info("Обработана группа %s -> вставлено %d пар", group_name, inserted)
             except Exception as e:
-                logger.error("Ошибка при обработке группы %s: %s", group_name, e)
                 await session.rollback()
+                raise RuntimeError(
+                    f"Факультет: {faculty_name}, Группа: {group_name}, Ошибка: {str(e)}"
+                )
 
         await client.close()
 
-    logger.info("Синхронизация завершена. Групп обработано: %d", total)
+    logger.info("Синхронизация для всего университета завершена. Групп обработано: %d", total)
 
 
 async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None, type_idx: int = 0):

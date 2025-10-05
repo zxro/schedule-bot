@@ -11,3 +11,12 @@ def get_type_sync_kb():
     )
 
     return kb
+
+def get_cancel_kb(cancel_type: str):
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_{cancel_type}")]
+        ]
+    )
+
+    return kb

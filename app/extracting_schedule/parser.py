@@ -34,7 +34,7 @@ def parse_lesson_time_data(lesson_time_data: List[Dict[str, str]]) -> Dict[int, 
     """
 
     lesson_time_map = {}
-    for idx, lt in enumerate(lesson_time_data, start=1):
+    for idx, lt in enumerate(lesson_time_data, start=0):
         try:
             start = time.fromisoformat(lt["start"])
             end = time.fromisoformat(lt["end"])
@@ -113,7 +113,7 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
         containers = tt.get("lessonsContainers") or tt.get("lessons") or []
 
         for cont in containers:
-            lesson_number = cont.get("lessonNumber") + 1 if cont.get("lessonNumber") is not None else None
+            lesson_number = cont.get("lessonNumber") if cont.get("lessonNumber") is not None else None
             weekday = cont.get("weekDay") or cont.get("week_day")
             week_mark = cont.get("weekMark")
 
@@ -134,7 +134,17 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
                     logger.error("Не удалось извлечь дату %s", date_str)
                     pass
 
-            lesson_key = (weekday, lesson_number, subject, professors, rooms, week_mark, ttype)
+            lesson_key = (
+                weekday,
+                lesson_number,
+                subject,
+                professors,
+                rooms,
+                week_mark,
+                ttype,
+                start_time,
+                end_time
+            )
 
             if lesson_key in seen_lessons:
                 continue

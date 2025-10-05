@@ -64,6 +64,8 @@ def create_faculty_keyboard():
         for faculty in faculties
     ]
 
+    keyboard.append([InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_sync")])
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -98,6 +100,7 @@ def create_courses_keyboard():
                 keyboard.append(row)
                 row = []
 
+        keyboard.append([InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_group_sync")])
         faculty_keyboards[faculty] = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     return faculty_keyboards

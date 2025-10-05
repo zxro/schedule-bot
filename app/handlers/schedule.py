@@ -72,10 +72,28 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
         }
 
         def format_lesson(l):
+            lesson_num_emoji = {
+                1: "1️⃣",
+                2: "2️⃣",
+                3: "3️⃣",
+                4: "4️⃣",
+                5: "5️⃣",
+                6: "6️⃣",
+                7: "7️⃣"
+            }
+
             start = l.start_time.strftime("%H:%M") if l.start_time else "??:??"
             end = l.end_time.strftime("%H:%M") if l.end_time else "??:??"
-            lesson_num = l.lesson_number if l.lesson_number else "?"
-            room = l.rooms if l.rooms else "Место проведения не указано"
+            time_str = f"⏳ {start} - {end}"
+
+            lesson_num = lesson_num_emoji.get(l.lesson_number + 1, "❓") if l.lesson_number is not None else "❓"
+            room = f"📍{l.rooms}" if l.rooms else "📍Место проведения не указано"
+
+            professors = l.professors
+            if isinstance(professors, list):
+                professors = ", ".join(professors)
+            elif not professors:
+                professors = "Преподаватель не указан"
 
             if l.week_mark == "plus":
                 marker = "➕"
@@ -84,7 +102,7 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
             else:  # every
                 marker = "⚪"
 
-            return f"  {marker} {lesson_num}: {l.subject} ({room}) ({start}-{end})"
+            return f"  {marker} {lesson_num} {l.subject}\n  👨‍🏫 {professors}\n  {room}\n  {time_str}"
 
         text = ""
         for wd in week_order:
@@ -92,19 +110,19 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
 
             if week == "plus":
                 filtered_lessons = [l for l in day_lessons if l.week_mark in ("every", "plus")]
-                header = "📅 Плюсовая неделя:\n\n"
+                header = "📅 Неделя ➖\n\n"
             elif week == "minus":
                 filtered_lessons = [l for l in day_lessons if l.week_mark in ("every", "minus")]
-                header = "📅 Минусовая неделя:\n\n"
+                header = "📅 Неделя ➕:\n\n"
             else:  # full
                 filtered_lessons = day_lessons
-                header = "📅 Всё расписание:\n\n"
+                header = "📅 Полное расписание:\n\n"
 
             if filtered_lessons:
                 if not text:
                     text += header
                 text += f"🗓 {weekday_names[wd]}:\n"
-                text += "\n".join(format_lesson(l) for l in filtered_lessons) + "\n\n"
+                text += "\n\n".join(format_lesson(l) for l in filtered_lessons) + "\n\n\n"
 
         if not text:
             text = f"На выбранную неделю ({week}) расписание для {group_name} пустое."

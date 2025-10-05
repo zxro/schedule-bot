@@ -51,6 +51,19 @@ class Lesson(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     raw_json = Column(JSON, nullable=True)
 
+
     __table_args__ = (
-        UniqueConstraint('group_id', 'date', 'lesson_number', 'week_mark', 'type', name='uq_lesson_unique'),
+        UniqueConstraint(
+            'group_id',
+            'weekday',
+            'lesson_number',
+            'subject',
+            'professors',
+            'rooms',
+            'week_mark',
+            'type',
+            'start_time',
+            'end_time',
+            name='uq_lesson_unique'
+        ),
     )
