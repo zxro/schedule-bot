@@ -18,12 +18,26 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from app.extracting_schedule.worker import get_schedule_for_group
-from app.keyboards.faculty_kb import faculty_keyboard, faculty_keyboards, abbr_faculty
+from app.keyboards.faculty_kb import abbr_faculty
+from app.keyboards.find_kb import faculty_keyboard_find, groups_keyboards_find
 from app.keyboards.schedule_keyboards import choice_week_kb
 from app.state.states import ShowSheduleStates
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+@router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_find"))
+async def cancel_find(callback: CallbackQuery, state: FSMContext):
+    """
+    Обработка отмены поиска.
+
+    Действия:
+    - Очищает состояние.
+    - Сообщает пользователю об отмене.
+    """
+
+    await state.clear()
+    await callback.message.edit_text(f"❌ Поиск отменён.")
 
 @router.message(F.text=="Просмотреть расписание")
 async def get_schedule_start(message: Message, state: FSMContext):
@@ -35,7 +49,7 @@ async def get_schedule_start(message: Message, state: FSMContext):
     - Устанавливает состояние choice_faculty.
     """
 
-    await message.answer("Выберите факультет:", reply_markup=faculty_keyboard)
+    await message.answer("Выберите факультет:", reply_markup=faculty_keyboard_find)
     await state.set_state(ShowSheduleStates.choice_faculty)
 
 @router.callback_query(StateFilter(ShowSheduleStates.choice_faculty), F.data.startswith("faculty:"))
@@ -50,7 +64,7 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
     """
 
     faculty_name = abbr_faculty[callback.data.split(":")[1]]
-    groups_kb = faculty_keyboards.get(faculty_name)
+    groups_kb = groups_keyboards_find.get(faculty_name)
     if not groups_kb:
         await callback.message.edit_text("❌ Для этого факультета нет групп.")
         return

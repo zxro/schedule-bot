@@ -13,20 +13,21 @@
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 
 from app.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.extracting_schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
-from app.keyboards.faculty_kb import faculty_keyboard, faculty_keyboards, abbr_faculty
-from app.keyboards.sync_kb import get_type_sync_kb, get_cancel_kb
+from app.keyboards.faculty_kb import abbr_faculty
+from app.keyboards.sync_kb import get_type_sync_kb
+from app.keyboards.sync_kb import faculty_keyboard_sync, groups_keyboards_sync
 
 from app.state.states import SyncStates
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-@router.callback_query(F.data.startswith("cancel_"))
+@router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_sync"))
 async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     """
     Обработка отмены синхронизации.
@@ -64,9 +65,15 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
 
     await state.set_state(SyncStates.confirm_full_sync)
 
+    kb_cancel = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_university_sync")]
+        ]
+    )
+
     await callback.message.edit_text(
         "Отправьте 'Да' для подтверждение синхронизации.",
-        reply_markup=get_cancel_kb("sync_university")
+        reply_markup=kb_cancel
     )
 
 @router.message(StateFilter(SyncStates.confirm_full_sync))
@@ -83,6 +90,7 @@ async def confirm_full_sync(message: Message, state: FSMContext):
 
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
+        logger.info("Синхронизация для всего университета отменена.")
         await state.clear()
         return
 
@@ -118,7 +126,7 @@ async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.edit_text(
             "Выберите факультет для синхронизации:",
-            reply_markup=faculty_keyboard
+            reply_markup=faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_faculty)
     except Exception as e:
@@ -145,7 +153,6 @@ async def sync_faculty_selected(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(f"✅ Синхронизация завершена для факультета {faculty_name}.")
         await state.clear()
     except Exception as e:
-        error_text = f"❌ Ошибка при синхронизации факультета: {str(e)}"
         await callback.message.edit_text(text=f"❌ Ошибка при синхронизации факультета.")
         logger.error(f"❌ Ошибка при синхронизации факультета {faculty_name}: {e}")
         await state.clear()
@@ -162,7 +169,7 @@ async def sync_group_start(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.edit_text(
             "Выберите факультет:",
-            reply_markup=faculty_keyboard
+            reply_markup=faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_group_faculty)
     except Exception as e:
@@ -181,7 +188,7 @@ async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
 
     try:
         faculty_name = abbr_faculty[callback.data.split(":")[1]]
-        groups_kb = faculty_keyboards.get(faculty_name)
+        groups_kb = groups_keyboards_sync.get(faculty_name)
 
         if not groups_kb:
             await callback.message.edit_text("❌ Для этого факультета нет групп.")
