@@ -11,9 +11,11 @@
 - SQLAlchemy ORM для работы с моделями и запросами.
 """
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.config import settings
 from sqlalchemy.pool import AsyncAdaptedQueuePool
+
+from app.database.init_db import init_db
 
 engine = create_async_engine(
     settings.DB_TIMETABLE_URL,        # строка подключения к PostgreSQL
@@ -28,3 +30,7 @@ AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     expire_on_commit=False
 )
+
+async def startup():
+    """Проверка существования бд и инициализация при отсутствии"""
+    await init_db(engine)

@@ -94,7 +94,9 @@ class TelegramLogHandler(logging.Handler):
                     await self.bot.send_message(self.chat_id, message)
                     sent = True
                 except Exception as e:
-                    logging.warning("Не удалось отправить логи в Telegram, повторная попытка через 21 секунду")
+                    logging.warning(
+                        f"Не удалось отправить логи в Telegram, повторная попытка через 21 секунду.\n Текст: {message}"
+                    )
                     await asyncio.sleep(21)
 
             await asyncio.sleep(self.RATE_LIMIT)
