@@ -264,7 +264,7 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
                 await session.rollback()
 
         await client.close()
-        logger.info("Синхронизация для факультета %s завершена. Групп обработано: %d",
+        logger.info("Синхронизация для %s завершена. Групп обработано: %d",
                     faculty_name, total)
         return total
 
