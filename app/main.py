@@ -1,13 +1,12 @@
 import asyncio
-from aiogram import Bot, Dispatcher
-from app.config import settings
+
+from app.bot import bot, dp
 from app.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.custom_logging.setup import setup_logging
 from app.database.db import startup
 from app.handlers.init_handlers import register_handlers
 
-bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-dp = Dispatcher()
+
 
 async def main():
     """

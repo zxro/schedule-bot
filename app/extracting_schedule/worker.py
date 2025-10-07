@@ -111,7 +111,6 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
                 rooms=rec.get("rooms"),
                 week_mark=wm,
                 type=rec.get("type"),
-                raw_json=rec.get("raw")
             )
             session.add(lesson)
             count += 1
@@ -224,7 +223,6 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
             await client.close()
             return 0
 
-        # Фильтруем группы по факультету
         faculty_groups = [g for g in groups if g.get("facultyName") == faculty_name]
 
         if not faculty_groups:

@@ -13,15 +13,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
-import enum
 
 Base = declarative_base()
 
-class WeekMarkEnum(str, enum.Enum):
+class WeekMarkEnum:
     """
-    Перечисление для отметки недели
+    Псевдо-перечисление для SQLite, так как ENUM напрямую не поддерживается.
     """
-
     every = "every"
     plus = "plus"
     minus = "minus"
@@ -59,9 +57,8 @@ class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True)
     group_name = Column(String, unique=True, nullable=False, index=True)
-    faculty_id = Column(Integer, ForeignKey(column="faculties.id", ondelete="SET NULL"), nullable=True)
-
-    faculty = relationship(argument="Faculty", lazy="joined")
+    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True)
+    faculty = relationship("Faculty", lazy="joined")
 
 class TimeSlot(Base):
     """
@@ -85,8 +82,11 @@ class TimeSlot(Base):
     lesson_number = Column(Integer, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    source_hash = Column(String, nullable=True)  # optional fingerprint
-    __table_args__ = (UniqueConstraint('lesson_number', 'start_time', 'end_time', name='uq_timeslot'),)
+    source_hash = Column(String, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('lesson_number', 'start_time', 'end_time', name='uq_timeslot'),
+    )
 
 class Lesson(Base):
     """
@@ -117,8 +117,6 @@ class Lesson(Base):
         Тип занятия (лекция, практика и т.д.)
     created_at : datetime
         Время создания записи.
-    raw_json : JSON
-        Исходные данные.
     """
 
     __tablename__ = "lessons"
@@ -132,24 +130,15 @@ class Lesson(Base):
     subject = Column(Text, nullable=True)
     professors = Column(Text, nullable=True)
     rooms = Column(Text, nullable=True)
-    week_mark = Column(Enum(WeekMarkEnum), nullable=True)
+    week_mark = Column(String, nullable=True)  # заменено Enum -> String
     type = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    raw_json = Column(JSON, nullable=True)
-
 
     __table_args__ = (
         UniqueConstraint(
-            'group_id',
-            'weekday',
-            'lesson_number',
-            'subject',
-            'professors',
-            'rooms',
-            'week_mark',
-            'type',
-            'start_time',
-            'end_time',
+            'group_id', 'weekday', 'lesson_number', 'subject',
+            'professors', 'rooms', 'week_mark', 'type',
+            'start_time', 'end_time',
             name='uq_lesson_unique'
         ),
     )

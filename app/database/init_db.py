@@ -1,27 +1,42 @@
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncEngine
-
 from app.database import models
 import logging
+from app.bot import bot
+from app.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
 
 async def init_db(eng: AsyncEngine):
     """
-    Проверяет доступность базы данных и создаёт таблицы из models.Base.
+    Проверяет подключение к SQLite и наличие таблиц.
+    Создаёт только отсутствующие таблицы из models.Base.
 
     Логика:
-        - Пытается открыть транзакцию через engine.begin().
-        - Если база доступна — логирует успех.
-        - Если база недоступна (OperationalError), создаёт все таблицы.
+    1. Через inspect получаем имена таблиц в базе.
+    2. Сравниваем с таблицами из моделей.
+    3. Если есть отсутствующие таблицы — создаём их через create_all(tables=...)
     """
     try:
         async with eng.begin() as conn:
-            pass
-        logger.info("Подключение к базе данных успешно.")
-    except OperationalError:
-        logger.warning("Не удалось подключиться к базе. Создание базы и таблиц...")
+            existing_tables = await conn.run_sync(
+                lambda sync_conn: set(inspect(sync_conn).get_table_names())
+            )
 
-        async with eng.begin() as conn:
-            await conn.run_sync(models.Base.metadata.create_all)
-        logger.info("База данных и таблицы созданы.")
+        model_tables = set(models.Base.metadata.tables.keys())
+
+        missing_tables = model_tables - existing_tables
+
+        if missing_tables:
+            logger.warning(f"⚠️ Отсутствуют таблицы: {missing_tables}. Создаём их...")
+            async with eng.begin() as conn:
+                tables_to_create = [models.Base.metadata.tables[name] for name in missing_tables]
+                await conn.run_sync(lambda sync_conn: models.Base.metadata.create_all(sync_conn, tables=tables_to_create))
+            logger.info(f"✅ Таблицы {missing_tables} успешно созданы.")
+            await send_chat_info_log(bot, f"✅ Таблицы {missing_tables} успешно созданы.")
+        else:
+            logger.info("✅ Все таблицы существуют.")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка при инициализации (подключения) базы: {e}")
+        raise
