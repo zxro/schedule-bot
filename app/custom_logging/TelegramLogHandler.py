@@ -7,7 +7,7 @@
 - Ограничение длины сообщений (4000 символов).
 - Повторная попытка при ошибке отправки.
 """
-
+from datetime import datetime
 import logging
 import asyncio
 from aiogram import Bot
@@ -150,4 +150,7 @@ async def send_chat_info_log(bot: Bot, text: str):
     text : str
         Текст сообщения.
     """
-    await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=f"[INFO] {text}")
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+    formatted_text = f"{timestamp} [INFO] {text}"
+    await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=formatted_text)
