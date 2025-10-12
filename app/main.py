@@ -1,39 +1,34 @@
 import asyncio
-from aiogram import Bot, Dispatcher
-from app.config import settings
-from app.handlers import register_handlers
-from app.database.database import Database
+
+from app.bot import bot, dp
+from app.custom_logging.TelegramLogHandler import send_chat_info_log
+from app.custom_logging.setup import setup_logging
+from app.database.db import startup
+from app.handlers.init_handlers import register_handlers
+
 
 
 async def main():
     """
-    Главная функция запуска бота.
+    @brief Главная функция запуска бота.
 
-    Действия:
+    @details:
+        - Проверяет и создает БД при необходимости
         - Создает объект Bot и Dispatcher
-        - Инициализирует подключение к БД
         - Регистрирует роутеры с обработчиками сообщений и callback
         - Запускает polling для обработки сообщений Telegram
+        - Запускает логирование
     """
-    bot = Bot(token=settings.BOT_TOKEN)
-    dp = Dispatcher()
 
-    # Инициализация базы данных
-    db = Database(settings.DATABASE_URL)
-    await db.connect()
+    logger = setup_logging(bot)
 
-    # Передаем объект БД в диспетчер
-    dp["db"] = db
+    await startup()
 
     register_handlers(dp)
 
-    print("Бот запущен!")
-
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await db.close()
-
+    logger.info("Бот успешно запущен")
+    await send_chat_info_log(bot, "Бот успешно запущен")
+    await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
