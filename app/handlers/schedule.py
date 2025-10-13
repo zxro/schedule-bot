@@ -40,11 +40,13 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
     await callback.message.edit_text(f"❌ Поиск отменён.")
+    await callback.answer()
 
 @router.callback_query(F.data=="exit_other_schedules")
 async def exit_other_schedules(callback: CallbackQuery):
     """Отмена выбора 'другого' расписания"""
     await callback.message.delete()
+    await callback.answer()
 
 
 @router.message(F.text=="Другие расписания")
@@ -146,7 +148,8 @@ async def weekly_schedule(callback: CallbackQuery):
             )
             user = result.scalar_one_or_none()
             if not user:
-                await callback.message.answer("❌ Вы ещё не зарегистрированы.")
+                await callback.message.edit_text("❌ Вы ещё не зарегистрированы.")
+                await callback.answer()
                 return
 
             current_week = week_mark.WEEK_MARK_TXT

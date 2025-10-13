@@ -29,7 +29,7 @@ def format_schedule(lessons, week: str, header_prefix: str = "📅 Распис�
     Универсальное форматирование расписания в стиле MarkdownV2.
     """
 
-    header_prefix = escape_md_v2(header_prefix)
+    header_prefix = f"*{escape_md_v2(header_prefix)}*"
 
     if week == "plus":
         filtered_lessons = [l for l in lessons if l.week_mark in ("plus", "every", None)]
