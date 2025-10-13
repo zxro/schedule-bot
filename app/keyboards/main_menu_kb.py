@@ -12,17 +12,16 @@ async def get_main_menu_kb(user_id: int):
         user = q.scalars().first()
 
     if user:
-        # Пользователь зарегистрирован
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="Расписание на сегодня")],
                 [KeyboardButton(text="Другие расписания")],
-                [KeyboardButton(text="Прочие функции")]
+                [KeyboardButton(text="Прочие функции")],
+                [KeyboardButton(text="Админ панель")]  # В будущем добавлять эту кнопку только при проверке на роль
             ],
             resize_keyboard=True
         )
     else:
-        # Пользователь не зарегистрирован
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="Регистрация")],

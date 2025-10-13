@@ -6,6 +6,7 @@ from app.utils.custom_logging.setup import setup_logging
 from app.database.db import checking_db
 from app.handlers.init_handlers import register_handlers
 from app.utils.week_mark import init_week_mark, update_week_mark
+from app.middlewares.UserContextMiddleware import UserContextMiddleware
 
 async def on_startup():
     """Настройка бота перед запуском"""
@@ -13,6 +14,9 @@ async def on_startup():
     logger = setup_logging(bot)
 
     await checking_db()
+
+    dp.message.middleware(UserContextMiddleware())
+    dp.callback_query.middleware(UserContextMiddleware())
 
     register_handlers(dp)
 

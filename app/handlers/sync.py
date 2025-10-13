@@ -43,8 +43,8 @@ async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f"❌ Синхронизация отменена.")
     logger.info(f"Синхронизация ({cancel_type}) отменена")
 
-@router.message(F.text=="Синхронизировать расписание")
-async def show_sync_menu(message: Message):
+@router.callback_query(F.data=="sync_schedule")
+async def show_sync_menu(callback: CallbackQuery):
     """
     Стартовый обработчик синхронизации.
 
@@ -52,7 +52,7 @@ async def show_sync_menu(message: Message):
     - Отправляет пользователю клавиатуру выбора режима синхронизации
       (университет, факультет, группа).
     """
-    await message.answer(text="Выберите режим синхронизации:", reply_markup=get_type_sync_kb())
+    await callback.message.edit_text(text="Выберите режим синхронизации:", reply_markup=get_type_sync_kb())
 
 @router.callback_query(F.data=="sync_university")
 async def sync_all_handler(callback: CallbackQuery, state: FSMContext):

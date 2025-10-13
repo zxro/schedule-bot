@@ -25,7 +25,7 @@ def create_faculty_keyboard_find():
     Логика:
         - Использует базовую функцию create_faculty_keyboard().
         - Если данные недоступны (None), возвращает None.
-        - К готовой клавиатуре добавляет кнопку "❌ Отмена поиска".
+        - К готовой клавиатуре добавляет кнопку "❌ Отмена".
 
     Возвращает:
         InlineKeyboardMarkup | None:
@@ -39,7 +39,7 @@ def create_faculty_keyboard_find():
 
     new_kb = InlineKeyboardMarkup(
         inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-            [InlineKeyboardButton(text="❌ Отмена поиска", callback_data="cancel_faculty_find")]
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_find")]
         ]
     )
     return new_kb
@@ -51,7 +51,7 @@ def create_group_keyboards_find():
     Логика:
         - Использует базовую функцию create_courses_keyboards().
         - Если данные недоступны (None), возвращает None.
-        - Для каждой клавиатуры добавляет кнопку "❌ Отмена поиска".
+        - Для каждой клавиатуры добавляет кнопку "❌ Отмена".
 
     Возвращает:
         dict[str, InlineKeyboardMarkup] | None:
@@ -68,7 +68,7 @@ def create_group_keyboards_find():
     for faculty, kb in base.items():
         new_kb = InlineKeyboardMarkup(
             inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-                [InlineKeyboardButton(text="❌ Отмена поиска", callback_data="cancel_group_find")]
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_group_find")]
             ]
         )
         faculty_kb[faculty] = new_kb

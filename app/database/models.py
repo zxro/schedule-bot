@@ -18,14 +18,6 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
-class WeekMarkEnum:
-    """
-    Псевдо-перечисление для SQLite, так как ENUM напрямую не поддерживается.
-    """
-    every = "every"
-    plus = "plus"
-    minus = "minus"
-
 class Faculty(Base):
     """
     Модель факультета.

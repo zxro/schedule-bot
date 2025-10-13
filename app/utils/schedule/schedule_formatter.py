@@ -24,36 +24,12 @@ def escape_md_v2(text: str) -> str:
     escape_chars = r"_*[]()~`>#+-=|{}.!\\"
     return ''.join(f'\\{c}' if c in escape_chars else c for c in text)
 
-import re
-from collections import defaultdict
-
-MAX_MESSAGE_LENGTH = 4000
-
-lesson_num_emoji = {
-    1: "1️⃣", 2: "2️⃣", 3: "3️⃣",
-    4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣"
-}
-
-weekday_names = {
-    1: "Понедельник",
-    2: "Вторник",
-    3: "Среда",
-    4: "Четверг",
-    5: "Пятница",
-    6: "Суббота",
-    7: "Воскресенье"
-}
-
-url_pattern = re.compile(r"(https?://\S+)")
-
-def escape_md_v2(text: str) -> str:
-    escape_chars = r"_*[]()~`>#+-=|{}.!\\"
-    return ''.join(f'\\{c}' if c in escape_chars else c for c in text)
-
 def format_schedule(lessons, week: str, header_prefix: str = "📅 Расписание"):
     """
     Универсальное форматирование расписания в стиле MarkdownV2.
     """
+
+    header_prefix = escape_md_v2(header_prefix)
 
     if week == "plus":
         filtered_lessons = [l for l in lessons if l.week_mark in ("plus", "every", None)]
@@ -70,7 +46,7 @@ def format_schedule(lessons, week: str, header_prefix: str = "📅 Распис�
         end = l.end_time.strftime("%H:%M") if l.end_time else "❓❓:❓❓"
         time_str = f"⏳ {start} \\- {end}"
 
-        lesson_num = lesson_num_emoji.get(l.lesson_number + 1 or 0, "❓")
+        lesson_num = lesson_num_emoji.get(l.lesson_number + 1, "❓")
 
         rooms_text = l.rooms or "Место проведения не указано"
         urls = url_pattern.findall(rooms_text)

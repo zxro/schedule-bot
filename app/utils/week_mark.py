@@ -69,7 +69,7 @@ async def update_week_mark():
 
     while True:
         WEEK_MARK_STICKER, WEEK_MARK_TXT = get_week_mark()
-        txt = f"[INFO] Обновлён маркер недели: {WEEK_MARK_STICKER}"
+        txt = f"Обновлён маркер недели: {WEEK_MARK_STICKER}"
         logger.info(txt)
         await send_chat_info_log(bot, txt)
 

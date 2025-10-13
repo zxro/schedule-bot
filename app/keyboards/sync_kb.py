@@ -39,7 +39,7 @@ def get_type_sync_kb():
             [InlineKeyboardButton(text="Синхронизация расписания для всех", callback_data="sync_university")],
             [InlineKeyboardButton(text="Синхронизация расписания для факультета", callback_data="sync_faculty")],
             [InlineKeyboardButton(text="Синхронизация расписания для группы", callback_data="sync_group")],
-            [InlineKeyboardButton(text="❌ Отмена синхронизации", callback_data="cancel_choice_sync")]
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_choice_sync")]
         ]
     )
 
@@ -51,7 +51,7 @@ def create_faculty_keyboard_sync():
 
     Основные кнопки — список факультетов (из create_faculty_keyboard),
     в конец добавляется кнопка:
-        ❌ Отмена синхронизации
+        ❌ Отмена
 
     Returns:
         InlineKeyboardMarkup | None:
@@ -65,7 +65,7 @@ def create_faculty_keyboard_sync():
 
     new_kb = InlineKeyboardMarkup(
         inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-            [InlineKeyboardButton(text="❌ Отмена синхронизации", callback_data="cancel_faculty_sync")]
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_sync")]
         ]
     )
     return new_kb
@@ -76,7 +76,7 @@ def create_groups_keyboards_sync():
 
     Для каждого факультета берётся базовая клавиатура групп (из create_courses_keyboards),
     в конец каждой клавиатуры добавляется кнопка:
-        ❌ Отмена синхронизации
+        ❌ Отмена
 
     Returns:
         dict[str, InlineKeyboardMarkup] | None:
@@ -92,7 +92,7 @@ def create_groups_keyboards_sync():
     for faculty, kb in base.items():
         new_kb = InlineKeyboardMarkup(
             inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-                [InlineKeyboardButton(text="❌ Отмена синхронизации", callback_data="cancel_group_sync")]
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_group_sync")]
             ]
         )
         faculty_kb[faculty] = new_kb

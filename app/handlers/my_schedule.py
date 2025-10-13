@@ -5,7 +5,7 @@ from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 
 from app.database.db import AsyncSessionLocal
 from app.database.models import User
-from app.keyboards.schedule_kb import choice_week_kb
+from app.keyboards.schedule_kb import get_choice_week_kb
 from app.state.states import ShowSheduleStates
 from sqlalchemy import select
 
@@ -36,5 +36,5 @@ async def show_my_schedule_start(message: Message, state: FSMContext):
     await state.set_state(ShowSheduleStates.choice_week)
 
     await message.answer(f"Выберите тип расписания:\n"
-                         f"Сейчас неделя {week_mark.WEEK_MARK}",
-                         reply_markup=choice_week_kb())
+                         f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}",
+                         reply_markup=get_choice_week_kb())

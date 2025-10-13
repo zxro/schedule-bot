@@ -13,7 +13,6 @@
     - В модулях синхронизации (`*_sync`) или поиска (`*_find`) к базовым клавиатурам добавляются
       кнопки отмены с разным callback_data.
 """
-from collections import defaultdict
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import requests
