@@ -5,12 +5,14 @@
 - Faculty: факультет
 - Group: учебная группа
 - TimeSlot: пара (начало/конец)
-- Lesson: занятие с подробностями (преподаватели, аудитория, неделя и т.д.)
+- Lesson: занятие
+- Users: пользователь
 """
 
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, Date, Time, Text, Enum, DateTime, JSON, UniqueConstraint
+    Column, Integer, String, ForeignKey, Date, Time, Text, DateTime, UniqueConstraint
 )
+from sqlalchemy.dialects.mysql import SMALLINT
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 
@@ -141,4 +143,29 @@ class Lesson(Base):
             'start_time', 'end_time',
             name='uq_lesson_unique'
         ),
+    )
+
+class User(Base):
+    """
+    Пользователь
+
+    Поля:
+    id : SMALL INTEGER
+        Первичный ключ(берется id пользователя его телеграм аккаунта)
+    group_id : Integer
+        Внешний ключ на группу.
+   faculty_id : Integer
+        Внешний ключ на факультет.
+    """
+    __tablename__ = "users"
+
+    id = Column(SMALLINT, primary_key=True)  # Telegram user_id
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    group = relationship("Group", lazy="joined")
+    faculty = relationship("Faculty", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint('id', name='uq_user_id'),
     )

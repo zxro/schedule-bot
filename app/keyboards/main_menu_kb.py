@@ -1,20 +1,35 @@
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from aiogram.types import KeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from app.database.db import AsyncSessionLocal
+from app.database.models import User
+from sqlalchemy import select
 
-from app.keyboards.admin_kb import get_admin_kb
-
-
-def start_keyboard():
+async def get_main_menu_kb(user_id: int):
     """
-    @brief Создает клавиатуру для главного меню после команды /start.
-
-    @details: Возвращает клавиатуру с кнопкой "Получить расписание курса"
-
-    @return ReplyKeyboardMarkup: Объект клавиатуры для отправки пользователю.
+    Создает клавиатуру главного меню в зависимости от статуса регистрации пользователя
     """
+    async with AsyncSessionLocal() as session:
+        q = await session.execute(select(User).where(User.id == user_id))
+        user = q.scalars().first()
 
-    """
-    ВРЕМЕННО возвращает админ клавиатуру
-    """
+    if user:
+        # Пользователь зарегистрирован
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="Показать мое расписание")],
+                [KeyboardButton(text="Просмотреть расписание")],
+                [KeyboardButton(text="Синхронизировать расписание")]
+            ],
+            resize_keyboard=True
+        )
+    else:
+        # Пользователь не зарегистрирован
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="Регистрация")],
+                [KeyboardButton(text="Просмотреть расписание")],
+                [KeyboardButton(text="Синхронизировать расписание")]
+            ],
+            resize_keyboard=True
+        )
 
-    return get_admin_kb()
+    return keyboard

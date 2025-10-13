@@ -18,8 +18,8 @@
 import logging
 from typing import List
 
-from app.extracting_schedule.fetcher import TimetableClient
-from app.extracting_schedule.parser import extract_lessons_from_timetable_json
+from app.utils.extracting_schedule.fetcher import TimetableClient
+from app.utils.extracting_schedule.parser import extract_lessons_from_timetable_json
 from app.database.db import AsyncSessionLocal
 from app.database.models import Faculty, Group, Lesson
 from sqlalchemy import select, delete

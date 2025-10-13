@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from app.database import models
 import logging
 from app.bot import bot
-from app.custom_logging.TelegramLogHandler import send_chat_info_log
+from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
 

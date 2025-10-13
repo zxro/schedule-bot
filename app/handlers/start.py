@@ -1,6 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import CommandStart
-from app.keyboards.main_menu_kb import start_keyboard
+from app.keyboards.main_menu_kb import get_main_menu_kb
 
 router = Router()
 
@@ -14,5 +14,6 @@ async def cmd_start(message: types.Message):
     @param message (types.Message): Объект сообщения Telegram.
     """
 
+    kb = await get_main_menu_kb(message.from_user.id)
     await message.answer(text="Привет! Я твой бот, буду помогать с расписанием 🤖",
-                         reply_markup=start_keyboard())
+                         reply_markup=kb)

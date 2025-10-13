@@ -10,3 +10,7 @@ class ShowSheduleStates(StatesGroup):
     choice_week = State()
     choice_group = State()
     choice_faculty = State()
+
+class RegistrationStates(StatesGroup):
+    choice_faculty = State()
+    choice_group = State()

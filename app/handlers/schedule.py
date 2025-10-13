@@ -18,10 +18,10 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.extracting_schedule.worker import get_schedule_for_group
+from app.utils.extracting_schedule.worker import get_schedule_for_group
 from app.keyboards.faculty_kb import abbr_faculty
 from app.keyboards.find_kb import faculty_keyboard_find, groups_keyboards_find
-from app.keyboards.schedule_keyboards import choice_week_kb
+from app.keyboards.schedule_kb import choice_week_kb
 from app.state.states import ShowSheduleStates
 
 router = Router()
