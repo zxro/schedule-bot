@@ -15,9 +15,9 @@ async def get_main_menu_kb(user_id: int):
         # Пользователь зарегистрирован
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="Показать мое расписание")],
-                [KeyboardButton(text="Просмотреть расписание")],
-                [KeyboardButton(text="Синхронизировать расписание")]
+                [KeyboardButton(text="Расписание на сегодня")],
+                [KeyboardButton(text="Другие расписания")],
+                [KeyboardButton(text="Прочие функции")]
             ],
             resize_keyboard=True
         )
@@ -26,8 +26,8 @@ async def get_main_menu_kb(user_id: int):
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="Регистрация")],
-                [KeyboardButton(text="Просмотреть расписание")],
-                [KeyboardButton(text="Синхронизировать расписание")]
+                [KeyboardButton(text="Другие расписания")],
+                # [KeyboardButton(text="Прочие функции")] # убрано в связи с отсутствием регистрации
             ],
             resize_keyboard=True
         )

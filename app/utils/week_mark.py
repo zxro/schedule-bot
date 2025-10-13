@@ -8,7 +8,8 @@ from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
 
-WEEK_MARK = None
+WEEK_MARK_STICKER = None
+WEEK_MARK_TXT = None
 
 def get_monday(date):
     """Находит понедельник для заданной даты"""
@@ -58,16 +59,17 @@ def is_even_week():
 
 def get_week_mark():
     """Возвращает маркер недели"""
-    return "➖" if is_even_week() else "➕"
+    return ("➖", "minus") if is_even_week() else ("➕", "plus")
 
 
 async def update_week_mark():
     """Фоновая задача: обновляет WEEK_MARK каждое воскресенье в 00:00"""
-    global WEEK_MARK
+    global WEEK_MARK_STICKER
+    global WEEK_MARK_TXT
 
     while True:
-        WEEK_MARK = get_week_mark()
-        txt = f"[INFO] Обновлён маркер недели: {WEEK_MARK}"
+        WEEK_MARK_STICKER, WEEK_MARK_TXT = get_week_mark()
+        txt = f"[INFO] Обновлён маркер недели: {WEEK_MARK_STICKER}"
         logger.info(txt)
         await send_chat_info_log(bot, txt)
 
@@ -86,6 +88,7 @@ async def update_week_mark():
 
 async def init_week_mark():
     """Вызывается при старте бота для начальной инициализации WEEK_MARK"""
-    global WEEK_MARK
-    WEEK_MARK = get_week_mark()
-    logger.info(f"[INFO] Начальный маркер недели: {WEEK_MARK}")
+    global WEEK_MARK_TXT
+    global WEEK_MARK_STICKER
+    WEEK_MARK_STICKER, WEEK_MARK_TXT = get_week_mark()
+    logger.info(f"[INFO] Начальный маркер недели: {WEEK_MARK_STICKER}")

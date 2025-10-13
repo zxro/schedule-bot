@@ -32,7 +32,6 @@ async def show_my_schedule_start(message: Message, state: FSMContext):
         )
         return
 
-    # Сохраняем группу пользователя в состоянии
     await state.update_data(group_name=user.group.group_name)
     await state.set_state(ShowSheduleStates.choice_week)
 

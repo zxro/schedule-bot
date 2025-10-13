@@ -97,7 +97,7 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
             f"✅ Регистрация завершена!\n"
             f"Факультет: {faculty_name}\n"
             f"Группа: {group_name}\n\n"
-            f"Теперь вы можете использовать кнопку 'Показать мое расписание'",
+            f"Теперь вы можете быстро просматривать своё расписание",
             reply_markup=updated_keyboard
         )
 

@@ -17,7 +17,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 import logging
 
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
-from app.utils.extracting_schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
+from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.faculty_kb import abbr_faculty
 from app.keyboards.sync_kb import get_type_sync_kb
 from app.keyboards.sync_kb import faculty_keyboard_sync, groups_keyboards_sync
