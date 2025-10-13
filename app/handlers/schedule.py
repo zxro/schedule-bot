@@ -18,6 +18,7 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
+from app.utils import week_mark
 from app.utils.extracting_schedule.worker import get_schedule_for_group
 from app.keyboards.faculty_kb import abbr_faculty
 from app.keyboards.find_kb import faculty_keyboard_find, groups_keyboards_find
@@ -86,7 +87,8 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
     await state.update_data(group_name=group_name)
     await state.set_state(ShowSheduleStates.choice_week)
 
-    await callback.message.edit_text("Выберите тип расписания:", reply_markup=choice_week_kb())
+    await callback.message.edit_text(f"Выберите тип расписания:\n"
+                                     f"Сейчас неделя {week_mark.WEEK_MARK}", reply_markup=choice_week_kb())
 
 
 

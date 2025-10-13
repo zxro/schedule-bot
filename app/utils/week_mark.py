@@ -1,0 +1,91 @@
+import asyncio
+import logging
+import math
+from datetime import datetime, timedelta
+
+from app.bot import bot
+from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
+
+logger = logging.getLogger(__name__)
+
+WEEK_MARK = None
+
+def get_monday(date):
+    """Находит понедельник для заданной даты"""
+    day_of_week = date.weekday()  # 0=понедельник, ..., 6=воскресенье
+    return date - timedelta(days=day_of_week)
+
+
+def days_difference(date1, date2):
+    """Разница в днях между двумя датами"""
+    date1 = date1.replace(hour=0, minute=0, second=0, microsecond=0)
+    date2 = date2.replace(hour=0, minute=0, second=0, microsecond=0)
+    difference = date2 - date1
+    return math.ceil(difference.total_seconds() / (24 * 60 * 60))
+
+
+def is_even_week():
+    """Определяет, четная ли текущая учебная неделя.
+
+    Логика:
+    - Первая учебная неделя начинается с ближайшего понедельника **после 1 сентября**.
+    - Первая неделя считается **нечётной ("-")**.
+    - Чётность определяется по количеству полных недель от первого понедельника.
+    """
+    now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    current_monday = get_monday(now)
+
+    # Определяем учебный год
+    academic_year = now.year if now.month >= 9 else now.year - 1
+    september_1st = datetime(academic_year, 9, 1)
+
+    days_to_next_monday = (7 - september_1st.weekday()) % 7
+    first_monday = september_1st + timedelta(days=days_to_next_monday)
+
+    # Если текущая неделя до начала учебного года — сдвигаем на прошлый учебный год
+    if current_monday < first_monday:
+        academic_year -= 1
+        september_1st = datetime(academic_year, 9, 1)
+        days_to_next_monday = (7 - september_1st.weekday()) % 7
+        first_monday = september_1st + timedelta(days=days_to_next_monday)
+
+    # Считаем количество недель между текущей неделей и первой учебной
+    weeks_diff = (current_monday - first_monday).days // 7
+
+    # Первая неделя ("-") считается нечётной, поэтому:
+    return weeks_diff % 2 == 0  # True -> чётная ("-"), False -> нечётная ("+")
+
+
+def get_week_mark():
+    """Возвращает маркер недели"""
+    return "➖" if is_even_week() else "➕"
+
+
+async def update_week_mark():
+    """Фоновая задача: обновляет WEEK_MARK каждое воскресенье в 00:00"""
+    global WEEK_MARK
+
+    while True:
+        WEEK_MARK = get_week_mark()
+        txt = f"[INFO] Обновлён маркер недели: {WEEK_MARK}"
+        logger.info(txt)
+        await send_chat_info_log(bot, txt)
+
+        now = datetime.now()
+
+        days_until_sunday = (6 - now.weekday()) % 7
+        next_sunday = now + timedelta(days=days_until_sunday)
+        next_sunday = next_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if next_sunday <= now:
+            next_sunday += timedelta(days=7)
+
+        sleep_time = (next_sunday - now).total_seconds()
+        await asyncio.sleep(sleep_time)
+
+
+async def init_week_mark():
+    """Вызывается при старте бота для начальной инициализации WEEK_MARK"""
+    global WEEK_MARK
+    WEEK_MARK = get_week_mark()
+    logger.info(f"[INFO] Начальный маркер недели: {WEEK_MARK}")

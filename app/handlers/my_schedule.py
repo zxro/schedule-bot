@@ -9,6 +9,8 @@ from app.keyboards.schedule_kb import choice_week_kb
 from app.state.states import ShowSheduleStates
 from sqlalchemy import select
 
+import app.utils.week_mark  as week_mark
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -34,4 +36,6 @@ async def show_my_schedule_start(message: Message, state: FSMContext):
     await state.update_data(group_name=user.group.group_name)
     await state.set_state(ShowSheduleStates.choice_week)
 
-    await message.answer("Выберите тип расписания:", reply_markup=choice_week_kb())
+    await message.answer(f"Выберите тип расписания:\n"
+                         f"Сейчас неделя {week_mark.WEEK_MARK}",
+                         reply_markup=choice_week_kb())
