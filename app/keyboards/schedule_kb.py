@@ -16,6 +16,7 @@ def get_other_schedules_kb():
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Расписание на текущую неделю", callback_data="weekly_schedule")],
+            [InlineKeyboardButton(text="Расписание на следующую неделю", callback_data="next_week_schedule")],
             [InlineKeyboardButton(text="Другое расписание", callback_data="other_schedule")],
             [InlineKeyboardButton(text="Расписание преподавателя", callback_data="professor_schedule")],
             [InlineKeyboardButton(text="Выйти", callback_data="exit_other_schedules")]

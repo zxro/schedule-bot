@@ -180,6 +180,57 @@ async def weekly_schedule(callback: CallbackQuery):
         logger.exception(f"⚠️ Ошибка при обработке weekly_schedule: {e}")
         await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
 
+@router.callback_query(F.data == "next_week_schedule")
+async def next_week_schedule(callback: CallbackQuery):
+    """
+    Обработчик кнопки "Расписание на следующую неделю".
+
+    1. Извлекает факультет и группу пользователя из БД.
+    2. Определяет маркер следующей недели (plus / minus).
+    3. Получает из таблицы Lesson все занятия для группы.
+    4. Форматирует и отправляет расписание на следующую неделю.
+    """
+
+    user_id = callback.from_user.id
+    try:
+        async with AsyncSessionLocal() as session:
+
+            result = await session.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = result.scalar_one_or_none()
+            if not user:
+                await callback.message.edit_text("❌ Вы ещё не зарегистрированы.")
+                await callback.answer()
+                return
+
+            next_week = "plus" if week_mark.WEEK_MARK_TXT == "minus" else "minus"
+            lessons_query = await session.execute(
+                select(Lesson)
+                .where(Lesson.group_id == user.group_id)
+                .order_by(Lesson.weekday, Lesson.lesson_number)
+            )
+            lessons = lessons_query.scalars().all()
+
+            if not lessons:
+                await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
+                return
+
+            messages = format_schedule(
+                lessons,
+                week=next_week,
+                header_prefix=f"📅 Расписание группы {user.group.group_name} на следующую неделю"
+            )
+
+            await callback.message.edit_text(messages[0], parse_mode="MarkdownV2", disable_web_page_preview=True)
+            for msg in messages[1:]:
+                await callback.message.answer(msg, parse_mode="MarkdownV2", disable_web_page_preview=True)
+
+            await callback.answer()
+
+    except Exception as e:
+        logger.exception(f"⚠️ Ошибка при обработке next_week_schedule: {e}")
+        await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
 
 
 @router.callback_query(StateFilter(ShowSheduleStates.choice_faculty), F.data.startswith("faculty:"))
