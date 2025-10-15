@@ -1,6 +1,7 @@
 import asyncio
 
 from app.bot import bot, dp
+from app.keyboards.init_keyboards import refresh_all_keyboards
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.custom_logging.setup import setup_logging
 from app.database.db import checking_db
@@ -14,6 +15,7 @@ async def on_startup():
     logger = setup_logging(bot)
 
     await checking_db()
+    await refresh_all_keyboards()
 
     dp.message.middleware(UserContextMiddleware())
     dp.callback_query.middleware(UserContextMiddleware())
@@ -25,8 +27,6 @@ async def on_startup():
 
     logger.info("Бот успешно запущен")
     await send_chat_info_log(bot, "Бот успешно запущен")
-
-
 
 async def main():
     """Главная функция запуска бота."""

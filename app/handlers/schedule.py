@@ -15,8 +15,8 @@ from aiogram.types import Message, CallbackQuery
 
 from app.utils import week_mark
 from app.utils.schedule.worker import get_schedule_for_group
-from app.keyboards.faculty_kb import abbr_faculty
-from app.keyboards.find_kb import faculty_keyboard_find, groups_keyboards_find
+from app.keyboards.base_kb import abbr_faculty
+import app.keyboards.find_kb as find_kb
 from app.keyboards.schedule_kb import get_choice_week_kb
 from app.state.states import ShowSheduleStates
 from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule
@@ -64,7 +64,7 @@ async def get_schedule_start(callback: CallbackQuery, state: FSMContext):
     - Устанавливает состояние choice_faculty.
     """
 
-    await callback.message.edit_text("Выберите факультет:", reply_markup=faculty_keyboard_find)
+    await callback.message.edit_text("Выберите факультет:", reply_markup=find_kb.faculty_keyboard_find)
     await state.set_state(ShowSheduleStates.choice_faculty)
     await callback.answer()
 
@@ -245,7 +245,7 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
     """
 
     faculty_name = abbr_faculty[callback.data.split(":")[1]]
-    groups_kb = groups_keyboards_find.get(faculty_name)
+    groups_kb = find_kb.groups_keyboards_find.get(faculty_name)
     if not groups_kb:
         await callback.message.edit_text("⚠️ Для этого факультета нет групп.")
         return

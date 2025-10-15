@@ -6,8 +6,8 @@ from aiogram.types import Message, CallbackQuery
 
 from app.database.db import AsyncSessionLocal
 from app.database.models import User, Group, Faculty
-from app.keyboards.faculty_kb import abbr_faculty
-from app.keyboards.registration_kb import faculty_keyboard_reg, groups_keyboards_reg
+from app.keyboards.base_kb import abbr_faculty
+import app.keyboards.registration_kb as registration_kb
 from app.keyboards.main_menu_kb import get_main_menu_kb
 from app.state.states import RegistrationStates
 from sqlalchemy import select
@@ -26,7 +26,7 @@ async def cancel_registration(callback: CallbackQuery, state: FSMContext):
 @router.message(F.text == "Регистрация")
 async def start_registration(message: Message, state: FSMContext):
     """Начало процесса регистрации"""
-    await message.answer("Выберите ваш факультет:", reply_markup=faculty_keyboard_reg)
+    await message.answer("Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
     await state.set_state(RegistrationStates.choice_faculty)
 
 
@@ -36,7 +36,7 @@ async def registration_faculty(callback: CallbackQuery, state: FSMContext):
     faculty_abbr = callback.data.split(":")[1]
     faculty_name = abbr_faculty[faculty_abbr]
 
-    groups_kb = groups_keyboards_reg.get(faculty_name)
+    groups_kb = registration_kb.groups_keyboards_reg.get(faculty_name)
     if not groups_kb:
         await callback.message.edit_text("❌ Для этого факультета нет групп.")
         return
