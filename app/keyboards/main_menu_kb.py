@@ -25,7 +25,7 @@ async def get_main_menu_kb(user_id: int):
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="Регистрация")],
-                [KeyboardButton(text="Другие расписания")],
+                [KeyboardButton(text="Расписания")],
                 # [KeyboardButton(text="Прочие функции")] # убрано в связи с отсутствием регистрации
             ],
             resize_keyboard=True

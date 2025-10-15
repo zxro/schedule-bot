@@ -103,6 +103,7 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
 
         # Редактируем предыдущее сообщение, чтобы убрать инлайн-клавиатуру
         await callback.message.edit_text("✅ Регистрация завершена!")
+        await callback.answer()
 
     except Exception as e:
         logger.error(f"Ошибка при регистрации пользователя: {e}")
