@@ -79,7 +79,7 @@ def format_schedule(lessons, week: str, header_prefix: str = "📅 Распис�
     day_texts = []
     for wd in sorted(lessons_by_day.keys()):
         day_lessons = sorted(lessons_by_day[wd], key=lambda x: x.lesson_number or 0)
-        day_block = f"🗓 *{escape_md_v2(weekday_names[wd])}*:\n" + "\n\n".join(format_lesson(l) for l in day_lessons) + "\n\n"
+        day_block = f"🗓 *{escape_md_v2(weekday_names[wd])}*:\n" + "\n\n".join(format_lesson(l) for l in day_lessons) + "\n\n\n"
         day_texts.append(day_block)
 
     messages = []

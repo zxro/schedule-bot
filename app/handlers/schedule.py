@@ -49,7 +49,7 @@ async def exit_other_schedules(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.message(F.text=="Другие расписания")
+@router.message((F.text == "Другие расписания") | (F.text == "Расписания"))
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
