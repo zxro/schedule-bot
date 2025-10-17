@@ -129,11 +129,8 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
 
             lesson = Lesson(
                 group_id=group_obj.id,
-                date=rec.get("date"),
                 weekday=rec.get("weekday"),
                 lesson_number=rec.get("lesson_number"),
-                start_time=rec.get("start_time"),
-                end_time=rec.get("end_time"),
                 subject=rec.get("subject"),
                 professors=rec.get("professors"),
                 rooms=rec.get("rooms"),

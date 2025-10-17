@@ -1,7 +1,7 @@
 """
 Парсер JSON ответа timetable -> объекты, пригодные для записи в БД.
 """
-from datetime import time, datetime
+from datetime import time
 from typing import List, Dict, Any
 import logging
 
@@ -125,15 +125,6 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
             start_time = lesson_time_map.get(lesson_number, {}).get("start")
             end_time = lesson_time_map.get(lesson_number, {}).get("end")
 
-            date_str = cont.get("date")
-            date_obj = None
-            if date_str:
-                try:
-                    date_obj = datetime.strptime(date_str, "%d.%m.%Y").date()
-                except Exception:
-                    logger.error("Не удалось извлечь дату %s", date_str)
-                    pass
-
             lesson_key = (
                 weekday,
                 lesson_number,
@@ -152,17 +143,13 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
 
             rec = {
                 "group_name": group_name,
-                "date": date_obj,
                 "weekday": weekday,
                 "lesson_number": lesson_number,
-                "start_time": start_time,
-                "end_time": end_time,
                 "subject": subject,
                 "professors": professors,
                 "rooms": rooms,
                 "week_mark": week_mark,
                 "type": ttype,
-                "raw": cont
             }
 
             records.append(rec)
