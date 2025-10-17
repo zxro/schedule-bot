@@ -9,7 +9,32 @@ class Settings(BaseSettings):
     @brief Настройки бота, загружаемые из переменных окружения
 
     @field BOT_TOKEN Токен Telegram-бота
+    @field TELEGRAM_LOG_CHAT_ID Чат для логов
+
+    @field TIMETABLE_API_BASE URL для подключения к сайту университета
+    @field DB_TIMETABLE_URL URL для подключения к базе данных
+
+    @field REQUEST_CONCURRENCY Ограничения числа одновременно выполняющихся запросов
+    @field REQUEST_DELAY Пуза между запросами
+    @field MAX_RETRIES Максимальное количество повторов запросов
+    @field RETRY_BACKOFF_FACTOR
+
+    @field CLASSES Расписание занятий
+    @field RETAKE Расписание пересдач
     """
-    BOT_TOKEN: str = Field(..., env='BOT_TOKEN')
+
+    TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
+    TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
+
+    TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
+    DB_TIMETABLE_URL: str = Field(..., validation_alias='DB_TIMETABLE_URL')
+
+    REQUEST_CONCURRENCY: int = Field(..., validation_alias='REQUEST_CONCURRENCY')
+    REQUEST_DELAY: float = Field(..., validation_alias='REQUEST_DELAY')
+    MAX_RETRIES: int = Field(..., validation_alias='MAX_RETRIES')
+    RETRY_BACKOFF_FACTOR: float = Field(..., validation_alias='RETRY_BACKOFF_FACTOR')
+
+    CLASSES: str = Field(..., validation_alias='CLASSES')
+    RETAKE: str = Field(..., validation_alias='RETAKE')
 
 settings = Settings()
