@@ -91,4 +91,3 @@ async def init_week_mark():
     global WEEK_MARK_TXT
     global WEEK_MARK_STICKER
     WEEK_MARK_STICKER, WEEK_MARK_TXT = get_week_mark()
-    logger.info(f"[INFO] Начальный маркер недели: {WEEK_MARK_STICKER}")

@@ -12,7 +12,7 @@ from app.config import settings
 from app.utils.custom_logging.ContextFilter import ContextFilter
 from app.utils.custom_logging.TelegramLogHandler import TelegramLogHandler
 
-def setup_logging(bot: Bot) -> logging.Logger:
+def setup_logging(bot: Bot):
     """
     Настройка логирования приложения.
 
@@ -50,5 +50,3 @@ def setup_logging(bot: Bot) -> logging.Logger:
     tg_handler.setFormatter(logging.Formatter(log_format))
     tg_handler.addFilter(context_filter)
     logger.addHandler(tg_handler)
-
-    return logger

@@ -9,6 +9,7 @@
 - Информация отправляется в Telegram через send_chat_info_log
 - Ошибки фиксируются через logging.error
 """
+import asyncio
 
 from aiogram import Router, F
 from aiogram.filters import StateFilter
@@ -42,6 +43,8 @@ async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text(f"❌ Синхронизация отменена.")
     logger.info(f"Синхронизация ({cancel_type}) отменена")
+    await asyncio.sleep(1)
+    await callback.message.delete()
 
 @router.callback_query(F.data=="sync_schedule")
 async def show_sync_menu(callback: CallbackQuery):
@@ -64,6 +67,7 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
     """
 
     await state.set_state(SyncStates.confirm_full_sync)
+    await state.update_data(confirm_message_id=callback.message.message_id)
 
     kb_cancel = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -88,6 +92,15 @@ async def confirm_full_sync(message: Message, state: FSMContext):
     - Обрабатывает ошибки.
     """
 
+    data = await state.get_data()
+    confirm_message_id = data.get('confirm_message_id')
+
+    if confirm_message_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение с подтверждением: {e}")
+
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
         logger.info("Синхронизация для всего университета отменена.")
@@ -109,8 +122,9 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         await send_chat_info_log(bot, text_end)
         logger.info(text_end)
     except Exception as e:
-        await message.answer(f"❌ Ошибка при синхронизации расписания для всего университета")
-        logger.error(f"❌ Ошибка при синхронизации расписания для всего университета: {e}")
+        text_err = "❌ Ошибка при синхронизации расписания для всего университета"
+        await message.answer(text_err)
+        logger.error(f"{text_err}: {e}")
 
     await state.clear()
 
