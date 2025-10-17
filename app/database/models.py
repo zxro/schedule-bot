@@ -53,34 +53,6 @@ class Group(Base):
     faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True)
     faculty = relationship("Faculty", lazy="joined")
 
-class TimeSlot(Base):
-    """
-    Модель временного интервала (пары).
-
-    Поля:
-    id : int
-        Первичный ключ.
-    lesson_number : int
-        Номер пары.
-    start_time : datetime.time
-        Время начала.
-    end_time : datetime.time
-        Время конца.
-    source_hash : str | None
-        Хэш источника (опционально).
-    """
-
-    __tablename__ = "timeslots"
-    id = Column(Integer, primary_key=True)
-    lesson_number = Column(Integer, nullable=False)
-    start_time = Column(Time, nullable=False)
-    end_time = Column(Time, nullable=False)
-    source_hash = Column(String, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint('lesson_number', 'start_time', 'end_time', name='uq_timeslot'),
-    )
-
 class Lesson(Base):
     """
     Модель занятия (конкретное расписание).
