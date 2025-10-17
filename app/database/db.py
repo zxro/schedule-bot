@@ -26,6 +26,6 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False
 )
 
-async def startup():
+async def checking_db():
     """Проверка существования бд и инициализация при отсутствии"""
     await init_db(engine)

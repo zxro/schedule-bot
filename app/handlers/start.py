@@ -6,9 +6,14 @@ router = Router()
 
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
-    """Обработчик команды /start с динамическим меню"""
-    keyboard = await get_main_menu_kb(message.from_user.id)
-    await message.answer(
-        text="Привет! Я твой бот, буду помогать с расписанием 🤖",
-        reply_markup=keyboard
-    )
+    """
+    @brief Обработчик команды /start.
+
+    @details Отправляет приветственное сообщение и клавиатуру главного меню.
+
+    @param message (types.Message): Объект сообщения Telegram.
+    """
+
+    kb = await get_main_menu_kb(message.from_user.id)
+    await message.answer(text="Привет! Я твой бот, буду помогать с расписанием 🤖",
+                         reply_markup=kb)

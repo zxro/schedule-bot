@@ -6,9 +6,9 @@ from aiogram.types import Message, CallbackQuery
 
 from app.database.db import AsyncSessionLocal
 from app.database.models import User, Group, Faculty
-from app.keyboards.faculty_kb import abbr_faculty
-from app.keyboards.registration_kb import faculty_keyboard_reg, groups_keyboards_reg
-from app.keyboards.main_menu_kb import get_main_menu_kb  # Добавляем импорт
+from app.keyboards.base_kb import abbr_faculty
+import app.keyboards.registration_kb as registration_kb
+from app.keyboards.main_menu_kb import get_main_menu_kb
 from app.state.states import RegistrationStates
 from sqlalchemy import select
 
@@ -20,13 +20,16 @@ logger = logging.getLogger(__name__)
 async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
-    await callback.message.edit_text("❌ Регистрация отменена.")
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logger.error(f"Не удалось удалить сообщение: {e}")
 
 
 @router.message(F.text == "Регистрация")
 async def start_registration(message: Message, state: FSMContext):
     """Начало процесса регистрации"""
-    await message.answer("Выберите ваш факультет:", reply_markup=faculty_keyboard_reg)
+    await message.answer("Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
     await state.set_state(RegistrationStates.choice_faculty)
 
 
@@ -36,7 +39,7 @@ async def registration_faculty(callback: CallbackQuery, state: FSMContext):
     faculty_abbr = callback.data.split(":")[1]
     faculty_name = abbr_faculty[faculty_abbr]
 
-    groups_kb = groups_keyboards_reg.get(faculty_name)
+    groups_kb = registration_kb.groups_keyboards_reg.get(faculty_name)
     if not groups_kb:
         await callback.message.edit_text("❌ Для этого факультета нет групп.")
         return
@@ -55,24 +58,23 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
     group_name = callback.data.split(":")[1]
     state_data = await state.get_data()
     faculty_name = state_data.get("faculty_name")
-    faculty_abbr = state_data.get("faculty_abbr")
 
     try:
         async with AsyncSessionLocal() as session:
             # Находим группу и факультет в базе
-            q = await session.execute(select(Group).where(Group.group_name == group_name))
-            group = q.scalars().first()
+            query = await session.execute(select(Group).where(Group.group_name == group_name))
+            group = query.scalars().first()
 
-            q = await session.execute(select(Faculty).where(Faculty.name == faculty_name))
-            faculty = q.scalars().first()
+            query = await session.execute(select(Faculty).where(Faculty.name == faculty_name))
+            faculty = query.scalars().first()
 
             if not group or not faculty:
                 await callback.message.edit_text("❌ Ошибка: группа или факультет не найдены.")
                 return
 
             # Проверяем, есть ли уже пользователь
-            q = await session.execute(select(User).where(User.id == callback.from_user.id))
-            existing_user = q.scalars().first()
+            query = await session.execute(select(User).where(User.id == callback.from_user.id))
+            existing_user = query.scalars().first()
 
             if existing_user:
                 # Обновляем существующего пользователя
@@ -97,12 +99,13 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
             f"✅ Регистрация завершена!\n"
             f"Факультет: {faculty_name}\n"
             f"Группа: {group_name}\n\n"
-            f"Теперь вы можете использовать кнопку 'Показать мое расписание'",
+            f"Теперь вы можете быстро просматривать своё расписание",
             reply_markup=updated_keyboard
         )
 
         # Редактируем предыдущее сообщение, чтобы убрать инлайн-клавиатуру
         await callback.message.edit_text("✅ Регистрация завершена!")
+        await callback.answer()
 
     except Exception as e:
         logger.error(f"Ошибка при регистрации пользователя: {e}")

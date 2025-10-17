@@ -5,25 +5,18 @@
 - Faculty: факультет
 - Group: учебная группа
 - TimeSlot: пара (начало/конец)
-- Lesson: занятие с подробностями (преподаватели, аудитория, неделя и т.д.)
+- Lesson: занятие
+- Users: пользователь
 """
 
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, Date, Time, Text, Enum, DateTime, JSON, UniqueConstraint
+    Column, Integer, String, ForeignKey, Date, Time, Text, DateTime, UniqueConstraint
 )
 from sqlalchemy.dialects.mysql import SMALLINT
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()
-
-class WeekMarkEnum:
-    """
-    Псевдо-перечисление для SQLite, так как ENUM напрямую не поддерживается.
-    """
-    every = "every"
-    plus = "plus"
-    minus = "minus"
 
 class Faculty(Base):
     """
@@ -143,7 +136,6 @@ class Lesson(Base):
             name='uq_lesson_unique'
         ),
     )
-
 
 class User(Base):
     """
