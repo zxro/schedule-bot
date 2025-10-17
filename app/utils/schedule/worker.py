@@ -23,7 +23,7 @@ from app.utils.schedule.fetcher import TimetableClient
 from app.utils.schedule.parser import extract_lessons_from_timetable_json
 from app.database.db import AsyncSessionLocal
 from app.database.models import Faculty, Group, Lesson
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -423,6 +423,17 @@ async def get_schedule_for_group(group_name: str):
         if not group:
             return []
 
-        q = await session.execute(select(Lesson).where(Lesson.group_id == group.id))
+        week_mark_order = case(
+            (Lesson.week_mark == 'every', 1),
+            (Lesson.week_mark == 'plus', 2),
+            (Lesson.week_mark == 'minus', 3),
+            else_=4
+        )
+
+        q = await session.execute(
+            select(Lesson)
+            .where(Lesson.group_id == group.id)
+            .order_by(week_mark_order)
+        )
         lessons = q.scalars().all()
         return lessons
