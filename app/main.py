@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from app.bot import bot, dp
 from app.keyboards.init_keyboards import refresh_all_keyboards
@@ -9,10 +10,12 @@ from app.handlers.init_handlers import register_handlers
 from app.utils.week_mark import init_week_mark, update_week_mark
 from app.middlewares.UserContextMiddleware import UserContextMiddleware
 
+logger = logging.getLogger(__name__)
+
 async def on_startup():
     """Настройка бота перед запуском"""
 
-    logger = setup_logging(bot)
+    setup_logging(bot)
 
     await checking_db()
     await refresh_all_keyboards()
