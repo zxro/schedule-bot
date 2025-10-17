@@ -3,7 +3,7 @@
 
 Ошибки при формировании расписания фиксируются через logging.
 """
-
+import asyncio
 import logging
 import datetime
 
@@ -39,8 +39,10 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
     """
 
     await state.clear()
-    await callback.message.edit_text(f"❌ Поиск отменён.")
-    await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logger.error(f"Не удалось удалить сообщение: {e}")
 
 @router.callback_query(F.data=="exit_other_schedules")
 async def exit_other_schedules(callback: CallbackQuery):
@@ -53,6 +55,7 @@ async def exit_other_schedules(callback: CallbackQuery):
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
+
 
 @router.callback_query(F.data=="other_schedule")
 async def get_schedule_start(callback: CallbackQuery, state: FSMContext):
@@ -124,10 +127,12 @@ async def get_schedule_today(message: Message):
         logger.error(f"⚠️ Ошибка при выводе расписания на сегодня: {e}")
         await message.answer("⚠️ Ошибка при получении расписания.")
 
+
 @router.callback_query(F.data=="professor_schedule")
 async def professor_schedule(callback: CallbackQuery):
     await callback.message.edit_text("Этот функционал ещё не доступен 😢")
     await callback.answer()
+
 
 @router.callback_query(F.data == "weekly_schedule")
 async def weekly_schedule(callback: CallbackQuery):
@@ -179,6 +184,7 @@ async def weekly_schedule(callback: CallbackQuery):
     except Exception as e:
         logger.exception(f"⚠️ Ошибка при обработке weekly_schedule: {e}")
         await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
+
 
 @router.callback_query(F.data == "next_week_schedule")
 async def next_week_schedule(callback: CallbackQuery):
@@ -268,6 +274,7 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(f"Выберите тип расписания:\n"
                                      f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_kb())
+
 
 @router.callback_query(StateFilter(ShowSheduleStates.choice_week), F.data.startswith("week:"))
 async def show_schedule(callback: CallbackQuery, state: FSMContext):

@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
-    await callback.message.edit_text("❌ Регистрация отменена.")
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logger.error(f"Не удалось удалить сообщение: {e}")
 
 
 @router.message(F.text == "Регистрация")
@@ -55,7 +58,6 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
     group_name = callback.data.split(":")[1]
     state_data = await state.get_data()
     faculty_name = state_data.get("faculty_name")
-    faculty_abbr = state_data.get("faculty_abbr")
 
     try:
         async with AsyncSessionLocal() as session:
