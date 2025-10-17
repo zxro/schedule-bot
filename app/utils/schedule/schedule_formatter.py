@@ -19,13 +19,13 @@ weekday_names = {
 }
 
 lessonTimeData = {
-    0: {"start": "08:30", "end": "10:05"},
-    1: {"start": "10:15", "end": "11:50"},
-    2: {"start": "12:10", "end": "13:45"},
-    3: {"start": "14:00", "end": "15:35"},
-    4: {"start": "15:55", "end": "17:30"},
-    5: {"start": "17:45", "end": "19:20"},
-    6: {"start": "19:30", "end": "21:00"}
+    0: {0: "08:30", 1: "10:05"},
+    1: {0: "10:15", 1: "11:50"},
+    2: {0: "12:10", 1: "13:45"},
+    3: {0: "14:00", 1: "15:35"},
+    4: {0: "15:55", 1: "17:30"},
+    5: {0: "17:45", 1: "19:20"},
+    6: {0: "19:30", 1: "21:00"}
 }
 
 url_pattern = re.compile(r"(https?://\S+)")
@@ -33,7 +33,7 @@ url_pattern = re.compile(r"(https?://\S+)")
 def get_lesson_time(lesson_number):
     if lesson_number in lessonTimeData:
         lesson = lessonTimeData[lesson_number]
-        return lesson["start"], lesson["end"]
+        return lesson[0], lesson[1]
     else:
         return "❓❓:❓❓", "❓❓:❓❓"
 
