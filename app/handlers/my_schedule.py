@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 async def show_my_schedule_start(message: Message, state: FSMContext):
     """Начало показа расписания для зарегистрированного пользователя"""
     async with AsyncSessionLocal() as session:
-        q = await session.execute(select(User).where(User.id == message.from_user.id))
-        user = q.scalars().first()
+        query = await session.execute(select(User).where(User.id == message.from_user.id))
+        user = query.scalars().first()
 
     if not user:
         await message.answer(

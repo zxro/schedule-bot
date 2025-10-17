@@ -60,19 +60,19 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
     try:
         async with AsyncSessionLocal() as session:
             # Находим группу и факультет в базе
-            q = await session.execute(select(Group).where(Group.group_name == group_name))
-            group = q.scalars().first()
+            query = await session.execute(select(Group).where(Group.group_name == group_name))
+            group = query.scalars().first()
 
-            q = await session.execute(select(Faculty).where(Faculty.name == faculty_name))
-            faculty = q.scalars().first()
+            query = await session.execute(select(Faculty).where(Faculty.name == faculty_name))
+            faculty = query.scalars().first()
 
             if not group or not faculty:
                 await callback.message.edit_text("❌ Ошибка: группа или факультет не найдены.")
                 return
 
             # Проверяем, есть ли уже пользователь
-            q = await session.execute(select(User).where(User.id == callback.from_user.id))
-            existing_user = q.scalars().first()
+            query = await session.execute(select(User).where(User.id == callback.from_user.id))
+            existing_user = query.scalars().first()
 
             if existing_user:
                 # Обновляем существующего пользователя
