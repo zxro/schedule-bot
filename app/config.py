@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from dotenv import load_dotenv
@@ -23,11 +25,19 @@ class Settings(BaseSettings):
     @field RETAKE Расписание пересдач
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.DB_TIMETABLE_URL:
+            base_dir = Path(__file__).parent.parent
+            db_path = base_dir / "app" / "database" / "TimetableTvSU.db"
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            self.DB_TIMETABLE_URL = f"sqlite+aiosqlite:///{db_path}"
+
     TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
     TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
 
     TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
-    DB_TIMETABLE_URL: str = Field(..., validation_alias='DB_TIMETABLE_URL')
+    DB_TIMETABLE_URL: str = Field(default="")
 
     REQUEST_CONCURRENCY: int = Field(..., validation_alias='REQUEST_CONCURRENCY')
     REQUEST_DELAY: float = Field(..., validation_alias='REQUEST_DELAY')

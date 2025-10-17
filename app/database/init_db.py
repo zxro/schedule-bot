@@ -1,5 +1,7 @@
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+from app.config import settings
 from app.database import models
 import logging
 from app.bot import bot
