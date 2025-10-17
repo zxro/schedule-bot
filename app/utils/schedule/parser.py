@@ -63,17 +63,13 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
         Список словарей, каждый из которых описывает одна пара:
         {
             "group_name": str,
-            "date": date | None,
             "weekday": int | None,
             "lesson_number": int | None,
-            "start_time": time | None,
-            "end_time": time | None,
             "subject": str | None,
             "professors": str | None,
             "rooms": str | None,
             "week_mark": str | None,
             "type": str,
-            "raw": dict (оригинальный контейнер)
         }
 
     Логика работы:
@@ -88,11 +84,9 @@ def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[st
         a. Определяем lesson_number и weekday.
         b. Получаем week_mark.
         c. Из списка texts извлекаем subject, professors, rooms.
-        d. Определяем start_time и end_time через lesson_time_map.
-        e. Если есть поле date, пытаемся преобразовать его в объект datetime.date.
-        f. Формируем ключ урока lesson_key для проверки уникальности.
-        g. Если lesson_key уже встречался, пропускаем текущую пару.
-        h. Создаем словарь rec с данными пары и добавляем его в records.
+        d. Формируем ключ урока lesson_key для проверки уникальности.
+        e. Если lesson_key уже встречался, пропускаем текущую пару.
+        f. Создаем словарь rec с данными пары и добавляем его в records.
     6. Возвращаем список records.
     """
 
