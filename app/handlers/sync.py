@@ -67,7 +67,7 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
     """
 
     await state.set_state(SyncStates.confirm_full_sync)
-    await state.update_data(confirm_message_id=callback.message.id)
+    await state.update_data(confirm_message_id=callback.message.message_id)
 
     kb_cancel = InlineKeyboardMarkup(
         inline_keyboard=[
