@@ -156,6 +156,7 @@ async def create_faculty_keyboard():
             ]
         )
 
+    # --- 2. Загрузка по API ---
     data = await load_groups_data()
     if not data or "groups" not in data:
         logger.warning("Не удалось получить список факультетов ни из БД, ни из API.")
@@ -166,13 +167,14 @@ async def create_faculty_keyboard():
     for faculty in faculties:
         abbr = faculty_abbr.get(faculty)
         if not abbr:
-            logger.warning("Факультет '%s' не найден в faculty_abbr — пропуск.", faculty)
+            logger.warning("Факультет '%s' не найден в faculty_abbr.", faculty)
             continue
         keyboard.append([InlineKeyboardButton(text=faculty, callback_data=f"faculty:{abbr}")])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 # ================= ГРУППЫ =================
+
 async def create_courses_keyboards():
     """
     Создаёт словарь клавиатур для групп факультетов (без кнопки отмены).
