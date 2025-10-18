@@ -4,8 +4,8 @@ from collections import defaultdict
 MAX_MESSAGE_LENGTH = 4000
 
 lesson_num_emoji = {
-    1: "1️⃣", 2: "2️⃣", 3: "3️⃣",
-    4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣"
+    0: "1️⃣", 1: "2️⃣", 2: "3️⃣",
+    3: "4️⃣", 4: "5️⃣", 5: "6️⃣", 6: "7️⃣"
 }
 
 weekday_names = {
@@ -18,7 +18,24 @@ weekday_names = {
     7: "Воскресенье"
 }
 
+lessonTimeData = {
+    0: {0: "08:30", 1: "10:05"},
+    1: {0: "10:15", 1: "11:50"},
+    2: {0: "12:10", 1: "13:45"},
+    3: {0: "14:00", 1: "15:35"},
+    4: {0: "15:55", 1: "17:30"},
+    5: {0: "17:45", 1: "19:20"},
+    6: {0: "19:30", 1: "21:00"}
+}
+
 url_pattern = re.compile(r"(https?://\S+)")
+
+def get_lesson_time(lesson_number):
+    if lesson_number in lessonTimeData:
+        lesson = lessonTimeData[lesson_number]
+        return lesson[0], lesson[1]
+    else:
+        return "❓❓:❓❓", "❓❓:❓❓"
 
 def escape_md_v2(text: str) -> str:
     escape_chars = r"_*[]()~`>#+-=|{}.!\\"
@@ -42,11 +59,10 @@ def format_schedule(lessons, week: str, header_prefix: str = "📅 Распис�
         return []
 
     def format_lesson(l):
-        start = l.start_time.strftime("%H:%M") if l.start_time else "❓❓:❓❓"
-        end = l.end_time.strftime("%H:%M") if l.end_time else "❓❓:❓❓"
+        start, end = get_lesson_time(lesson_number=l.lesson_number)
         time_str = f"⏳ {start} \\- {end}"
 
-        lesson_num = lesson_num_emoji.get(l.lesson_number + 1, "❓")
+        lesson_num = lesson_num_emoji.get(l.lesson_number, "❓")
 
         rooms_text = l.rooms or "Место проведения не указано"
         urls = url_pattern.findall(rooms_text)

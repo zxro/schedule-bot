@@ -119,7 +119,7 @@ async def confirm_full_sync(message: Message, state: FSMContext):
 
         text_end = "✅ Синхронизация расписания завершена для всего университета."
         await sent_msg.edit_text(text=text_end)
-        await send_chat_info_log(bot, text_end)
+        logger.info(text_end)
         logger.info(text_end)
     except Exception as e:
         text_err = "❌ Ошибка при синхронизации расписания для всего университета"
@@ -159,12 +159,14 @@ async def sync_faculty_selected(callback: CallbackQuery, state: FSMContext):
     """
 
     faculty_name = abbr_faculty[callback.data.split(":")[1]]
+    logger.info(f"⏳ Начата синхронизация для факультета {faculty_name}...")
     try:
         await callback.message.edit_text(f"⏳ Синхронизация факультета {faculty_name}...")
 
         await run_full_sync_for_faculty(faculty_name)
 
         await callback.message.edit_text(f"✅ Синхронизация завершена для факультета {faculty_name}.")
+        logger.info(f"✅ Синхронизация завершена для факультета {faculty_name}.")
         await state.clear()
     except Exception as e:
         await callback.message.edit_text(text=f"❌ Ошибка при синхронизации факультета.")
@@ -231,12 +233,14 @@ async def sync_group_selected(callback: CallbackQuery, state: FSMContext):
     """
 
     group_name = callback.data.split(":")[1]
+    logger.info(f"⏳Начата синхронизация для группы {group_name}...")
     try:
         await callback.message.edit_text(f"⏳ Синхронизация расписания для группы {group_name}...")
 
         await run_full_sync_for_group(group_name)
 
         await callback.message.edit_text(f"✅ Синхронизация завершена для группы {group_name}.")
+        logger.info(f"✅ Синхронизация завершена для группы {group_name}.")
         await state.clear()
     except Exception as e:
         await callback.message.edit_text(text=f"❌ Ошибка при синхронизации расписания для группы: {group_name}")

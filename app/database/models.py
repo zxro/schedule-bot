@@ -10,11 +10,10 @@
 """
 
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, Date, Time, Text, DateTime, UniqueConstraint
+    Column, Integer, String, ForeignKey, Time, Text, UniqueConstraint
 )
 from sqlalchemy.dialects.mysql import SMALLINT
 from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -54,34 +53,6 @@ class Group(Base):
     faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True)
     faculty = relationship("Faculty", lazy="joined")
 
-class TimeSlot(Base):
-    """
-    Модель временного интервала (пары).
-
-    Поля:
-    id : int
-        Первичный ключ.
-    lesson_number : int
-        Номер пары.
-    start_time : datetime.time
-        Время начала.
-    end_time : datetime.time
-        Время конца.
-    source_hash : str | None
-        Хэш источника (опционально).
-    """
-
-    __tablename__ = "timeslots"
-    id = Column(Integer, primary_key=True)
-    lesson_number = Column(Integer, nullable=False)
-    start_time = Column(Time, nullable=False)
-    end_time = Column(Time, nullable=False)
-    source_hash = Column(String, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint('lesson_number', 'start_time', 'end_time', name='uq_timeslot'),
-    )
-
 class Lesson(Base):
     """
     Модель занятия (конкретное расписание).
@@ -116,23 +87,18 @@ class Lesson(Base):
     __tablename__ = "lessons"
     id = Column(Integer, primary_key=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
-    date = Column(Date, nullable=True)
     weekday = Column(Integer, nullable=True)
     lesson_number = Column(Integer, nullable=True)
-    start_time = Column(Time, nullable=True)
-    end_time = Column(Time, nullable=True)
     subject = Column(Text, nullable=True)
     professors = Column(Text, nullable=True)
     rooms = Column(Text, nullable=True)
-    week_mark = Column(String, nullable=True)  # заменено Enum -> String
+    week_mark = Column(String, nullable=True)
     type = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint(
             'group_id', 'weekday', 'lesson_number', 'subject',
             'professors', 'rooms', 'week_mark', 'type',
-            'start_time', 'end_time',
             name='uq_lesson_unique'
         ),
     )

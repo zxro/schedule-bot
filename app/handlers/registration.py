@@ -21,6 +21,7 @@ async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
     try:
+        await callback.answer()
         await callback.message.delete()
     except Exception as e:
         logger.error(f"Не удалось удалить сообщение: {e}")
