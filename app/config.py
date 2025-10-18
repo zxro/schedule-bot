@@ -4,8 +4,13 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from dotenv import load_dotenv
 
+from sys import exit
+
 base_dir = Path(__file__).resolve().parent.parent
-load_dotenv(dotenv_path=base_dir / "config" / ".env")
+dotenv_path = base_dir / "config" / ".env"
+if (not dotenv_path.exists()) :
+    exit(".env file not found in config/.env")
+load_dotenv(dotenv_path=dotenv_path)
 
 class Settings(BaseSettings):
     """
