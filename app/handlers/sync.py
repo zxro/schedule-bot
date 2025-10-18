@@ -107,19 +107,15 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         await state.clear()
         return
 
-    bot = message.bot
-    text_start = "⏳ Синхронизация расписания для всех факультетов и групп..."
-
     try:
+        text_start = "⏳ Синхронизация расписания для всех факультетов и групп..."
         sent_msg = await message.answer(text=text_start)
-        await send_chat_info_log(bot, text_start)
         logger.info(text_start)
 
         await run_full_sync()
 
         text_end = "✅ Синхронизация расписания завершена для всего университета."
         await sent_msg.edit_text(text=text_end)
-        logger.info(text_end)
         logger.info(text_end)
     except Exception as e:
         text_err = "❌ Ошибка при синхронизации расписания для всего университета"
