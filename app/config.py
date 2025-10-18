@@ -4,7 +4,8 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from dotenv import load_dotenv
 
-load_dotenv()
+base_dir = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=base_dir / "config" / ".env")
 
 class Settings(BaseSettings):
     """
@@ -28,8 +29,7 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DB_TIMETABLE_URL:
-            base_dir = Path(__file__).parent.parent
-            db_path = base_dir / "app" / "database" / "TimetableTvSU.db"
+            db_path = base_dir / "data" / "TimetableTvSU.db"
             db_path.parent.mkdir(parents=True, exist_ok=True)
             self.DB_TIMETABLE_URL = f"sqlite+aiosqlite:///{db_path}"
 
