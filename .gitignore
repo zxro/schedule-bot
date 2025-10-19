@@ -1,4 +1,5 @@
 **/__pycache__/
-config/.env
+config/
+data/
 uv.lock
 .python-version
