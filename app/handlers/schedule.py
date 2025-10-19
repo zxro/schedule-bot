@@ -3,7 +3,6 @@
 
 Ошибки при формировании расписания фиксируются через logging.
 """
-import asyncio
 import logging
 import datetime
 
@@ -40,6 +39,7 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
     try:
+        await callback.answer()
         await callback.message.delete()
     except Exception as e:
         logger.error(f"Не удалось удалить сообщение: {e}")

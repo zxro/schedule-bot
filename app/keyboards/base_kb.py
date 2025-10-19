@@ -130,11 +130,9 @@ async def load_groups_data():
 
 async def create_faculty_keyboard():
     """
-    Создаёт клавиатуру факультетов (предпочтительно из БД, иначе из API).
+    Создаёт клавиатуру факультетов (из БД).
 
     Логика:
-        - Загружает список групп через load_groups_data().
-        - Извлекает уникальные факультеты.
         - Для каждого факультета создаёт кнопку с callback_data вида "faculty:<ABBR>".
 
     Возвращает:
@@ -143,35 +141,16 @@ async def create_faculty_keyboard():
             - None — если данные недоступны или не удалось создать клавиатуру.
     """
 
-    # --- 1. Пробуем из БД ---
     async with AsyncSessionLocal() as session:
         q = await session.execute(select(Faculty.name).order_by(Faculty.name))
         faculties = q.scalars().all()
 
-    if faculties:
-        return InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=f, callback_data=f"faculty:{faculty_abbr.get(f, f)}")]
-                for f in faculties
-            ]
-        )
-
-    # --- 2. Загрузка по API ---
-    data = await load_groups_data()
-    if not data or "groups" not in data:
-        logger.warning("Не удалось получить список факультетов ни из БД, ни из API.")
-        return None
-
-    faculties = sorted(set(group['facultyName'] for group in data['groups']))
-    keyboard = []
-    for faculty in faculties:
-        abbr = faculty_abbr.get(faculty)
-        if not abbr:
-            logger.warning("Факультет '%s' не найден в faculty_abbr.", faculty)
-            continue
-        keyboard.append([InlineKeyboardButton(text=faculty, callback_data=f"faculty:{abbr}")])
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f, callback_data=f"faculty:{faculty_abbr.get(f, f)}")]
+            for f in faculties
+        ]
+    )
 
 # ================= ГРУППЫ =================
 
@@ -180,14 +159,11 @@ async def create_courses_keyboards():
     Создаёт словарь клавиатур для групп факультетов (без кнопки отмены).
 
     Источник данных:
-        1. Основной — база данных (таблицы Faculty и Group).
-        2. Резервный — внешнее API (settings.TIMETABLE_API_BASE + "/groups").
+        База данных (таблицы Faculty и Group).
 
     Логика:
-        1. Пробует загрузить группы из БД (через ORM).
-        2. Если в БД нет групп — делает запрос к API.
-        3. Группирует группы по факультетам.
-        4. Формирует клавиатуры, где группы расположены по 3 кнопки в ряд.
+        1. Загружает группы из БД.
+        2. Формирует клавиатуры, где группы расположены по 3 кнопки в ряд.
 
     Возвращает:
         dict[str, InlineKeyboardMarkup] | None:
@@ -195,7 +171,6 @@ async def create_courses_keyboards():
             - None — если данные недоступны.
     """
 
-    # ---------- 1. Попытка получить группы из БД ----------
     async with AsyncSessionLocal() as session:
         q = await session.execute(
             select(Group)
@@ -210,37 +185,4 @@ async def create_courses_keyboards():
             continue
         faculty_groups.setdefault(g.faculty.name, []).append(g.group_name)
 
-    if faculty_groups:
-        return build_faculty_keyboards(faculty_groups)
-
-    # ---------- 2. Если в БД нет групп, обращаемся к API ----------
-    logger.warning("Не удалось получить группы из БД. Загружаем из API...")
-
-    client = TimetableClient()
-    try:
-        data = await client.fetch_groups()
-    except Exception as e:
-        logger.error(f"Ошибка при загрузке данных из API: {e}")
-        await client.close()
-        return None
-
-    await client.close()
-
-    if not data or "groups" not in data:
-        logger.error("Некорректный формат данных API /groups.")
-        return None
-
-    faculty_groups_api: dict[str, list[str]] = {}
-    for group in data["groups"]:
-        faculty_name = group.get("facultyName")
-        group_name = group.get("groupName")
-        if not faculty_name or not group_name:
-            continue
-        faculty_groups_api.setdefault(faculty_name, []).append(group_name)
-
-    if not faculty_groups_api:
-        logger.warning("Нет доступных групп ни в БД, ни в API.")
-        return None
-
-    logger.info("Клавиатуры групп успешно созданы из API.")
-    return build_faculty_keyboards(faculty_groups_api)
+    return build_faculty_keyboards(faculty_groups)

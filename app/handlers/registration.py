@@ -21,6 +21,7 @@ async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
     try:
+        await callback.answer()
         await callback.message.delete()
     except Exception as e:
         logger.error(f"Не удалось удалить сообщение: {e}")
@@ -28,7 +29,23 @@ async def cancel_registration(callback: CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "Регистрация")
 async def start_registration(message: Message, state: FSMContext):
-    """Начало процесса регистрации"""
+    """Начало процесса регистрации с проверкой существующей регистрации"""
+    # Проверяем, зарегистрирован ли пользователь
+    async with AsyncSessionLocal() as session:
+        query = await session.execute(select(User).where(User.id == message.from_user.id))
+        existing_user = query.scalars().first()
+
+    if existing_user:
+        # Пользователь уже зарегистрирован
+        await message.answer(
+            "✅ Вы уже зарегистрированы!\n\n"
+            "Вы можете использовать полный функционал бота.\n"
+            "Если хотите изменить данные, используйте раздел \"Прочие функции\" → \"Изменить персональные данные\"",
+            reply_markup=await get_main_menu_kb(message.from_user.id)
+        )
+        return
+
+    # Если пользователь не зарегистрирован, начинаем процесс регистрации
     await message.answer("Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
     await state.set_state(RegistrationStates.choice_faculty)
 
@@ -80,6 +97,8 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
                 # Обновляем существующего пользователя
                 existing_user.group_id = group.id
                 existing_user.faculty_id = faculty.id
+                action_text = "Данные обновлены!"
+                success_message = f"✅ Данные обновлены!\nФакультет: {faculty_name}\nГруппа: {group_name}"
             else:
                 # Создаем нового пользователя
                 user = User(
@@ -88,6 +107,13 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
                     faculty_id=faculty.id
                 )
                 session.add(user)
+                action_text = "Регистрация завершена!"
+                success_message = (
+                    f"✅ Регистрация завершена!\n"
+                    f"Факультет: {faculty_name}\n"
+                    f"Группа: {group_name}\n\n"
+                    f"Теперь вы можете быстро просматривать своё расписание"
+                )
 
             await session.commit()
 
@@ -95,16 +121,10 @@ async def registration_group(callback: CallbackQuery, state: FSMContext):
         updated_keyboard = await get_main_menu_kb(callback.from_user.id)
 
         # Отправляем сообщение с обновленной клавиатурой
-        await callback.message.answer(
-            f"✅ Регистрация завершена!\n"
-            f"Факультет: {faculty_name}\n"
-            f"Группа: {group_name}\n\n"
-            f"Теперь вы можете быстро просматривать своё расписание",
-            reply_markup=updated_keyboard
-        )
+        await callback.message.answer(success_message, reply_markup=updated_keyboard)
 
         # Редактируем предыдущее сообщение, чтобы убрать инлайн-клавиатуру
-        await callback.message.edit_text("✅ Регистрация завершена!")
+        await callback.message.edit_text(f"✅ {action_text}")
         await callback.answer()
 
     except Exception as e:
