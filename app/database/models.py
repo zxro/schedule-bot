@@ -109,17 +109,22 @@ class User(Base):
 
     Поля:
     id : SMALL INTEGER
-        Первичный ключ(берется id пользователя его телеграм аккаунта)
+        Первичный ключ (берется id пользователя его телеграм аккаунта)
     group_id : Integer
         Внешний ключ на группу.
    faculty_id : Integer
         Внешний ключ на факультет.
+    role : SMALLINT
+        Роль пользователя (0-9), по умолчанию 0.
+        0 - пользователь
+        1 - админ
     """
     __tablename__ = "users"
 
     id = Column(SMALLINT, primary_key=True)  # Telegram user_id
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
     faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(SMALLINT, nullable=False, default=0)
 
     group = relationship("Group", lazy="joined")
     faculty = relationship("Faculty", lazy="joined")
