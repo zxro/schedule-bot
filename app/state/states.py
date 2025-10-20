@@ -14,3 +14,6 @@ class ShowScheduleStates(StatesGroup):
 class RegistrationStates(StatesGroup):
     choice_faculty = State()
     choice_group = State()
+
+class AddAdminStates(StatesGroup):
+    waiting_id = State()
