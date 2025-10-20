@@ -17,7 +17,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 
-from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.base_kb import abbr_faculty
 from app.keyboards.sync_kb import get_type_sync_kb, refresh_sync_keyboards
