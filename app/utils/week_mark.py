@@ -63,7 +63,7 @@ def get_week_mark():
 
 
 async def update_week_mark():
-    """Фоновая задача: обновляет WEEK_MARK каждое воскресенье в 00:00"""
+    """Фоновая задача: обновляет WEEK_MARK каждый понедельник в 00:00"""
     global WEEK_MARK_STICKER
     global WEEK_MARK_TXT
 
@@ -75,14 +75,14 @@ async def update_week_mark():
 
         now = datetime.now()
 
-        days_until_sunday = (6 - now.weekday()) % 7
-        next_sunday = now + timedelta(days=days_until_sunday)
-        next_sunday = next_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
+        days_until_monday = (0 - now.weekday()) % 7
+        next_monday = now + timedelta(days=days_until_monday)
+        next_monday = next_monday.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        if next_sunday <= now:
-            next_sunday += timedelta(days=7)
+        if next_monday <= now:
+            next_monday += timedelta(days=7)
 
-        sleep_time = (next_sunday - now).total_seconds()
+        sleep_time = (next_monday - now).total_seconds()
         await asyncio.sleep(sleep_time)
 
 
