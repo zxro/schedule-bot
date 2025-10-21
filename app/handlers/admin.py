@@ -34,14 +34,16 @@ async def exit_admin_panel(callback: CallbackQuery):
 
 
 @router.message(F.text == "Админ панель", IsAdminFilter())
-async def admin_panel_message(message: Message):
+async def admin_panel_message(message: Message, state: FSMContext):
     await message.answer(text="Админ панель:", reply_markup=get_admin_kb())
+    await state.clear()
 
 
 @router.callback_query(F.data=="admin_panel", IsAdminFilter())
-async def admin_panel_callback(callback: CallbackQuery):
+async def admin_panel_callback(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text="Админ панель:", reply_markup=get_admin_kb())
     await callback.answer()
+    await state.clear()
 
 
 @router.callback_query(F.data == "add_admin", IsAdminFilter())
