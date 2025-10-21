@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from aiogram import F, Router
 from aiogram.filters import StateFilter
@@ -139,20 +140,18 @@ async def list_admins(callback: CallbackQuery):
         for i, admin in enumerate(admins, 1):
             escaped_id = escape_md_v2(str(admin.id))
 
-            profile_link = f"[Профиль](tg://user?id={admin.id})"
-
             username = get_admin_username(admin.id)
             username_text = f" — {escape_md_v2(username)}" if username is not None else ""
 
             current_user_marker = " ⭐ Это вы" if admin.id == callback.from_user.id else ""
 
-            admin_list += (f"{i}\\. ID `{escaped_id}` — {profile_link}{username_text}"
+            admin_list += (f"{i}\\. ID `{escaped_id}`{username_text}"
                            f"\n     {current_user_marker}\n")
 
         admin_list += (
-            "\nПри не рабочей ссылке воспользуйтесь:\n"
-            "app\\: tg\\:\\/\\/user\\?id\\=id\n"
-            "web\\: https\\:\\/\\/web\\.telegram\\.org\\/k\\/\\#id\n"
+            "\nПри не рабочей или отсутствующей ссылке воспользуйтесь:\n"
+            "app\\: tg\\:\\/\\/user\\?id\\=ID\n"
+            "web\\: https\\:\\/\\/web\\.telegram\\.org\\/k\\/\\#ID\n"
         )
 
         builder = InlineKeyboardBuilder()
@@ -181,13 +180,13 @@ async def remove_admin_handler(callback: CallbackQuery):
         admin_id = int(callback.data.split("_")[2])
 
         if admin_id == callback.from_user.id:
-            await callback.answer("❌ Вы не можете снять права с самого себя", show_alert=True)
+            await callback.answer(text="❌ Вы не можете снять права с самого себя", show_alert=True)
             return
 
         async with AsyncSessionLocal() as session:
             user = await session.get(User, admin_id)
             if not user:
-                await callback.answer("❌ Пользователь не найден", show_alert=True)
+                await callback.answer(text="❌ Пользователь не найден", show_alert=True)
                 return
 
             await session.execute(
@@ -197,12 +196,15 @@ async def remove_admin_handler(callback: CallbackQuery):
             )
             await session.commit()
 
-        txt = f"ID: {admin_id} снят с должности администратора."
+        txt = f"✅ ID: {admin_id} снят с должности администратора."
         logger.info(txt)
-        await callback.message.edit_text(txt)
+        await callback.message.edit_text(text=txt)
         await callback.answer()
 
         await remove_admin_from_list(admin_id)
+
+        await asyncio.sleep(1)
+        await callback.message.edit_text(text="Админ панель", reply_markup=get_admin_kb())
 
     except (ValueError, IndexError) as e:
         await callback.answer("❌ Ошибка при обработке запроса", show_alert=True)
