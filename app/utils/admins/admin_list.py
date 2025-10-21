@@ -13,8 +13,23 @@ LIST_ADMINS = {}  # словарь: {id: "@username"}
 
 async def create_first_admin(admin_id: int):
     """
-    Функция создаёт первого админа и вставляет временные факультет и группу.
+    Создаёт первого администратора и временные записи в БД.
+
+    При отсутствии администраторов функция:
+    1. Добавляет временный факультет с id=0 и именем 'TEMP'.
+    2. Добавляет временную группу с id=0 и faculty_id=0.
+    3. Создаёт пользователя с переданным ID и ролью администратора (role=1).
+    4. Фиксирует изменения в базе данных.
+
+    Временные записи впоследствии удаляются функцией `remove_test_data()`.
+
+    Args:
+        admin_id (int): Telegram ID первого администратора.
+
+    Raises:
+        Exception: При ошибках вставки или проблемах с транзакцией (фиксируется в логах).
     """
+
     async with AsyncSessionLocal() as session:
         try:
             # Вставляем временный факультет
@@ -40,8 +55,14 @@ async def create_first_admin(admin_id: int):
 
 async def remove_test_data():
     """
-    Функция удаляет временный факультет и группу после проверки админов.
+    Удаляет временные записи факультета и группы после инициализации администратора.
+
+    Эта функция вызывается после успешного создания первого администратора.
+    Удаляются записи с `id = 0` из таблиц `faculties` и `groups`.
+
+    Логирует факт удаления и пропускает отсутствие записей без ошибок.
     """
+
     async with AsyncSessionLocal() as session:
         # Удаляем временную группу (id=0)
         test_group = await session.get(Group, 0)
@@ -59,8 +80,22 @@ async def remove_test_data():
 
 async def check_admins_start():
     """
-    Проверяет наличие админов, если их нет - создаёт первого админа через ввод ID.
+    Проверяет наличие администраторов при запуске бота.
+
+    Алгоритм:
+    1. Если список администраторов (`LIST_ADMINS`) не пуст — выход.
+    2. Если админов нет:
+       - запрашивает ID первого администратора через консольный ввод;
+       - создаёт временные записи (см. `create_first_admin`);
+       - обновляет список администраторов в памяти (`refresh_admin_list`);
+       - удаляет тестовые данные (`remove_test_data`).
+
+    Используется при первом запуске бота или после очистки базы данных.
+
+    Raises:
+        ValueError: Если введён некорректный ID (ловится и повторяется ввод).
     """
+
     if len(LIST_ADMINS) != 0:
         return
 
@@ -79,9 +114,22 @@ async def check_admins_start():
 
 async def get_username_from_tg(user_id: int):
     """
-    Получает username пользователя из Telegram.
-    Если невозможно получить - возвращает 'none'
+    Получает username пользователя из Telegram API.
+
+    Использует метод `bot.get_chat(user_id)` для получения информации о пользователе.
+    Возвращает username в формате `@username` или None, если username отсутствует
+    или произошла ошибка (например, бот не имеет доступа к пользователю).
+
+    Args:
+        user_id (int): Telegram ID пользователя.
+
+    Returns:
+        str | None: Username пользователя в формате '@name', либо None.
+
+    Raises:
+        Exception: Все ошибки логируются и не прерывают выполнение программы.
     """
+
     try:
         user = await bot.get_chat(user_id)
         return f"@{user.username}" if user.username else None
@@ -91,7 +139,21 @@ async def get_username_from_tg(user_id: int):
 
 
 async def refresh_admin_list():
-    """Заполняет список администраторов с username из Telegram"""
+    """
+    Обновляет глобальный список администраторов из базы данных.
+
+    Действия:
+    1. Загружает из таблицы `users` всех пользователей с администратора.
+    2. Для каждого администратора получает username через `get_username_from_tg`.
+    3. Заполняет глобальный словарь `LIST_ADMINS` формата `{user_id: "@username"}`.
+    4. Логирует количество найденных администраторов.
+
+    Если администраторов в базе нет — словарь остаётся пустым, но бот продолжает работу.
+
+    Raises:
+        Exception: Ошибки соединения с БД или Telegram API логируются.
+    """
+
     global LIST_ADMINS
     try:
         async with AsyncSessionLocal() as session:
@@ -117,8 +179,17 @@ async def refresh_admin_list():
 
 async def add_admin_to_list(user_id: int):
     """
-    Добавляет одного администратора в список
+    Добавляет нового администратора в кэш `LIST_ADMINS`.
+
+    Используется после успешного назначения роли администратора через бота.
+
+    Args:
+        user_id (int): Telegram ID пользователя, получившего права администратора.
+
+    Логирует успешное добавление и username, если он найден.
+    Ошибки Telegram API или записи в словарь не критичны и просто логируются.
     """
+
     global LIST_ADMINS
     try:
         username = await get_username_from_tg(user_id)
@@ -130,8 +201,17 @@ async def add_admin_to_list(user_id: int):
 
 async def remove_admin_from_list(user_id: int):
     """
-    Удаляет одного администратора из списка
+    Удаляет администратора из локального списка `LIST_ADMINS`.
+
+    Args:
+        user_id (int): Telegram ID администратора для удаления.
+
+    Поведение:
+    - Если пользователь найден — удаляется из словаря.
+    - Если нет — логируется предупреждение.
+    - Все ошибки отлавливаются и логируются без прерывания выполнения.
     """
+
     global LIST_ADMINS
     try:
         if user_id in LIST_ADMINS:
@@ -145,10 +225,29 @@ async def remove_admin_from_list(user_id: int):
 
 
 def is_admin(user_id: int):
-    """Проверяет, является ли пользователь администратором"""
+    """
+    Проверяет, является ли пользователь администратором.
+
+    Args:
+        user_id (int): Telegram ID пользователя.
+
+    Returns:
+        bool: True — если пользователь есть в `LIST_ADMINS`, иначе False.
+    """
+
     return user_id in LIST_ADMINS
 
 
 def get_admin_username(user_id: int):
-    """Возвращает username администратора или 'none'"""
+    """
+    Возвращает username администратора по его ID.
+
+    Args:
+        user_id (int): Telegram ID администратора.
+
+    Returns:
+        str | None: Username в формате '@name', если найден,
+                    иначе None (если нет в списке или username отсутствует).
+    """
+
     return LIST_ADMINS.get(user_id, None)
