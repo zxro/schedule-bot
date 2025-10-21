@@ -8,7 +8,7 @@ from sys import exit
 
 base_dir = Path(__file__).resolve().parent.parent
 dotenv_path = base_dir / "config" / ".env"
-if (not dotenv_path.exists()) :
+if not dotenv_path.exists():
     exit(".env file not found in config/.env")
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
     DB_TIMETABLE_URL: str = Field(default="")
+    LIST_ADMINS_URL: str = Field(default="")
 
     REQUEST_CONCURRENCY: int = Field(..., validation_alias='REQUEST_CONCURRENCY')
     REQUEST_DELAY: float = Field(..., validation_alias='REQUEST_DELAY')
