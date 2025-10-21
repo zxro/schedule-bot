@@ -45,6 +45,7 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
     TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
+    ADMIN_PASSWORD: str = Field(..., validation_alias='ADMIN_PASSWORD')
 
     TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
     DB_TIMETABLE_URL: str = Field(default="")
