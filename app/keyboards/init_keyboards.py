@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 async def refresh_all_keyboards():
     await refresh_base_keyboards()
 
-    await refresh_sync_keyboards()
+    # await refresh_sync_keyboards()
     await refresh_find_keyboards()
     await refresh_reg_keyboards()
 
-    logger.info('Все клавиатуры обновлены')
+    logger.info('✅ Все клавиатуры обновлены')
