@@ -18,6 +18,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 import logging
 
 from app.filters.is_admin import IsAdminFilter
+from app.keyboards.admin_kb import get_admin_kb
 from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.base_kb import abbr_faculty
 from app.keyboards.sync_kb import get_type_sync_kb, refresh_sync_keyboards
@@ -39,12 +40,16 @@ async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     - Логирует событие.
     """
 
-    cancel_type = callback.data.replace("cancel_", "")
     await state.clear()
+    await callback.answer()
+
     await callback.message.edit_text(f"❌ Синхронизация отменена.")
+
+    cancel_type = callback.data.replace("cancel_", "")
     logger.info(f"Синхронизация ({cancel_type}) отменена")
-    await asyncio.sleep(1)
-    await callback.message.delete()
+
+    await asyncio.sleep(0.5)
+    await callback.message.edit_text(text="Админ панель", reply_markup=get_admin_kb())
 
 @router.callback_query(F.data=="sync_schedule", IsAdminFilter())
 async def show_sync_menu(callback: CallbackQuery):
@@ -180,7 +185,7 @@ async def sync_group_start(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text(
-            "Выберите факультет:",
+            text="Выберите факультет:",
             reply_markup=sync_kb.faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_group_faculty)
@@ -208,7 +213,7 @@ async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
             return
 
         await callback.message.edit_text(
-            f"Выберите группу факультета {faculty_name}:",
+            text=f"Выберите группу факультета {faculty_name}:",
             reply_markup=groups_kb
         )
         await state.set_state(SyncStates.sync_group_select)
