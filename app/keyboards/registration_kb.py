@@ -30,7 +30,7 @@ async def create_faculty_keyboard_reg():
 
     new_kb = InlineKeyboardMarkup(
         inline_keyboard=[row.copy() for row in base.inline_keyboard] + [
-            [InlineKeyboardButton(text="❌ Отмена регистрации", callback_data="cancel_faculty_reg")]
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_reg")]
         ]
     )
     return new_kb
@@ -52,7 +52,7 @@ async def create_group_keyboards_reg():
     for faculty, kb in base.items():
         new_kb = InlineKeyboardMarkup(
             inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-                [InlineKeyboardButton(text="❌ Отмена регистрации", callback_data="cancel_group_reg")]
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_group_reg")]
             ]
         )
         faculty_kb[faculty] = new_kb

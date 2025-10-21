@@ -3,6 +3,7 @@ import logging
 
 from app.bot import bot, dp
 from app.keyboards.init_keyboards import refresh_all_keyboards
+from app.keyboards.sync_kb import refresh_sync_keyboards
 from app.utils.admins.admin_list import refresh_admin_list, check_admins_start
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.custom_logging.setup import setup_logging
@@ -21,7 +22,10 @@ async def on_startup():
     setup_logging(bot)
 
     await checking_db()
+
+    await refresh_sync_keyboards()
     await refresh_all_keyboards()
+
     await refresh_admin_list()
 
     await check_admins_start()
