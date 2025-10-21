@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 async def on_startup():
     """Настройка бота перед запуском"""
 
+    await bot.delete_webhook(drop_pending_updates=True)
+
     setup_logging(bot)
 
     await checking_db()
