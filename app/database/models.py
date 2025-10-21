@@ -4,15 +4,26 @@
 
 - Faculty: факультет
 - Group: учебная группа
-- TimeSlot: пара (начало/конец)
 - Lesson: занятие
 - Users: пользователь
 """
 
+"""
+Сделать при инициализации БД (чтобы добавить админа)
+# INSERT INTO faculties (id, name) VALUES (0, 'ТЕСТ');
+# INSERT INTO groups (id, group_name, faculty_id) VALUES (0, 'ТЕСТ', 0);
+# INSERT INTO users (id, group_id, faculty_id, role) 
+# VALUES (ID, 0, 0, 1);
+
+Остановить бота и удалить группу и факультет "ТЕСТ"
+# DELETE FROM groups WHERE id = 0;
+# DELETE FROM faculties WHERE id = 0;
+"""
+
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, Time, Text, UniqueConstraint
+    Column, Integer, String, ForeignKey, Text, UniqueConstraint
 )
-from sqlalchemy.dialects.mysql import SMALLINT
+
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
@@ -22,9 +33,9 @@ class Faculty(Base):
     Модель факультета.
 
     Поля:
-    id : int
+    id : Integer
         Первичный ключ.
-    name : str
+    name : String
         Название факультета (уникальное).
     """
 
@@ -37,11 +48,11 @@ class Group(Base):
     Модель группы.
 
     Поля:
-    id : int
+    id : Integer
         Первичный ключ.
     group_name : str
         Название группы (уникальное).
-    faculty_id : int | None
+    faculty_id : Integer | None
         Внешний ключ на факультет.
     faculty : Faculty
         ORM-связь (joined-load).
@@ -58,30 +69,24 @@ class Lesson(Base):
     Модель занятия (конкретное расписание).
 
     Поля:
-    id : int
+    id : Integer
         Первичный ключ.
-    group_id : int
+    group_id : Integer
         Внешний ключ на группу.
-    date : datetime.date | None
-        Дата занятия.
-    weekday : int | None
+    weekday : Integer | None
         День недели (1–7).
     lesson_number : int | None
         Номер пары.
-    start_time, end_time : datetime.time | None
-        Время начала и конца.
-    subject : str | None
+    subject : String | None
         Предмет.
-    professors : str | None
+    professors : String | None
         Преподаватели.
-    rooms : str | None
+    rooms : String | None
         Аудитории.
     week_mark : WeekMarkEnum | None
         Маркер недели (every/plus/minus).
-    type : str | None
+    type : String | None
         Тип занятия (лекция, практика и т.д.)
-    created_at : datetime
-        Время создания записи.
     """
 
     __tablename__ = "lessons"
@@ -108,23 +113,23 @@ class User(Base):
     Пользователь
 
     Поля:
-    id : SMALL INTEGER
+    id : Integer
         Первичный ключ (берется id пользователя его телеграм аккаунта)
     group_id : Integer
         Внешний ключ на группу.
    faculty_id : Integer
         Внешний ключ на факультет.
-    role : SMALLINT
+    role : Integer
         Роль пользователя (0-9), по умолчанию 0.
         0 - пользователь
         1 - админ
     """
     __tablename__ = "users"
 
-    id = Column(SMALLINT, primary_key=True)  # Telegram user_id
+    id = Column(Integer, primary_key=True)  # Telegram user_id
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
     faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="CASCADE"), nullable=False, index=True)
-    role = Column(SMALLINT, nullable=False, default=0)
+    role = Column(Integer, nullable=False, default=0)
 
     group = relationship("Group", lazy="joined")
     faculty = relationship("Faculty", lazy="joined")
