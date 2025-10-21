@@ -8,18 +8,6 @@
 - Users: пользователь
 """
 
-"""
-Сделать при инициализации БД (чтобы добавить админа)
-# INSERT INTO faculties (id, name) VALUES (0, 'ТЕСТ');
-# INSERT INTO groups (id, group_name, faculty_id) VALUES (0, 'ТЕСТ', 0);
-# INSERT INTO users (id, group_id, faculty_id, role) 
-# VALUES (ID, 0, 0, 1);
-
-Остановить бота и удалить группу и факультет "ТЕСТ"
-# DELETE FROM groups WHERE id = 0;
-# DELETE FROM faculties WHERE id = 0;
-"""
-
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, Text, UniqueConstraint
 )
