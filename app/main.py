@@ -39,7 +39,7 @@ async def on_startup():
     asyncio.create_task(update_week_mark())
 
     logger.info("Бот успешно запущен")
-    await send_chat_info_log(bot, "Бот успешно запущен")
+    await send_chat_info_log("Бот успешно запущен")
 
 async def main():
     """Главная функция запуска бота."""

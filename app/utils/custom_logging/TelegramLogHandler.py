@@ -12,6 +12,8 @@ import logging
 import asyncio
 from aiogram import Bot
 from asyncio import Queue
+
+from app.bot import bot as botimp
 from app.config import settings
 
 class TelegramLogHandler(logging.Handler):
@@ -139,7 +141,7 @@ class TelegramLogHandler(logging.Handler):
             start = end
         return chunks
 
-async def send_chat_info_log(bot: Bot, text: str):
+async def send_chat_info_log(text: str):
     """
     Отправляет информационный лог уровня INFO напрямую в Telegram-чат.
     Используется вручную для редких сообщений (например, уведомлений об операциях).
@@ -153,4 +155,4 @@ async def send_chat_info_log(bot: Bot, text: str):
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
     formatted_text = f"{timestamp} [INFO] {text}"
-    await bot.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=formatted_text)
+    await botimp.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=formatted_text)
