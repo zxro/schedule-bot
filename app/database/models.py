@@ -115,8 +115,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)  # Telegram user_id
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
-    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="CASCADE"), nullable=False, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True, index=True)
     role = Column(Integer, nullable=False, default=0)
 
     group = relationship("Group", lazy="joined")

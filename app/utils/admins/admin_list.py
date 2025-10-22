@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.bot import bot
 from app.database.db import AsyncSessionLocal
-from app.database.models import User, Group, Faculty
+from app.database.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -13,35 +13,22 @@ LIST_ADMINS = {}  # словарь: {id: "@username"}
 
 async def create_first_admin(admin_id: int):
     """
-    Создаёт первого администратора и временные записи в БД.
+    Создаёт первого администратора.
 
     При отсутствии администраторов функция:
-    1. Добавляет временный факультет с id=0 и именем 'TEMP'.
-    2. Добавляет временную группу с id=0 и faculty_id=0.
-    3. Создаёт пользователя с переданным ID и ролью администратора (role=1).
-    4. Фиксирует изменения в базе данных.
-
-    Временные записи впоследствии удаляются функцией `remove_test_data()`.
+        Создаёт пользователя с переданным ID и ролью администратора (role=1).
+        Фиксирует изменения в базе данных.
 
     Args:
         admin_id (int): Telegram ID первого администратора.
 
     Raises:
-        Exception: При ошибках вставки или проблемах с транзакцией (фиксируется в логах).
+        Exception: При ошибках вставки или проблемах с транзакцией.
     """
 
     async with AsyncSessionLocal() as session:
         try:
-            # Вставляем временный факультет
-            faculty = Faculty(id=0, name="TEMP")
-            session.add(faculty)
-
-            # Вставляем временную группу
-            group = Group(id=0, group_name="TEMP", faculty_id=0)
-            session.add(group)
-
-            # Вставляем пользователя-админа
-            user = User(id=admin_id, group_id=0, faculty_id=0, role=1)
+            user = User(id=admin_id, role=1)
             session.add(user)
 
             await session.commit()
@@ -51,31 +38,6 @@ async def create_first_admin(admin_id: int):
         except Exception as e:
             await session.rollback()
             logger.error(f"❌ Ошибка вставки временных данных: {e}")
-
-
-async def remove_test_data():
-    """
-    Удаляет временные записи факультета и группы после инициализации администратора.
-
-    Эта функция вызывается после успешного создания первого администратора.
-    Удаляются записи с `id = 0` из таблиц `faculties` и `groups`.
-
-    Логирует факт удаления и пропускает отсутствие записей без ошибок.
-    """
-
-    async with AsyncSessionLocal() as session:
-        # Удаляем временную группу (id=0)
-        test_group = await session.get(Group, 0)
-        if test_group:
-            await session.delete(test_group)
-
-        # Удаляем временный факультет (id=0)
-        test_faculty = await session.get(Faculty, 0)
-        if test_faculty:
-            await session.delete(test_faculty)
-
-        await session.commit()
-        logger.info("✅ Временные факультет и группа удалены.")
 
 
 async def check_admins_start():
@@ -109,7 +71,6 @@ async def check_admins_start():
 
     await create_first_admin(admin_id)
     await refresh_admin_list()
-    await remove_test_data()
 
 
 async def get_username_from_tg(user_id: int):
