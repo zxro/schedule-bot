@@ -18,7 +18,7 @@ from app.keyboards.base_kb import abbr_faculty
 import app.keyboards.find_kb as find_kb
 from app.keyboards.schedule_kb import get_choice_week_kb
 from app.state.states import ShowScheduleStates
-from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule
+from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule_students
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.database.db import AsyncSessionLocal
 from app.database.models import User, Lesson
@@ -26,6 +26,7 @@ from app.database.models import User, Lesson
 
 router = Router()
 logger = logging.getLogger(__name__)
+
 
 @router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_find"))
 async def cancel_find(callback: CallbackQuery, state: FSMContext):
@@ -43,6 +44,7 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception as e:
         logger.error(f"Не удалось удалить сообщение: {e}")
+
 
 @router.callback_query(F.data=="exit_other_schedules")
 async def exit_other_schedules(callback: CallbackQuery):
@@ -113,7 +115,7 @@ async def get_schedule_today(message: Message):
                 await message.answer("Сегодня пар нет 🎉")
                 return
 
-            text_blocks = format_schedule(
+            text_blocks = format_schedule_students(
                 lessons=lessons_today,
                 week=current_week_mark,
                 header_prefix=f"📅 Расписание на сегодня ({today.strftime('%d.%m.%Y')})"
@@ -122,16 +124,9 @@ async def get_schedule_today(message: Message):
             for text in text_blocks:
                 await message.answer(text, parse_mode="MarkdownV2", disable_web_page_preview=True)
 
-
     except Exception as e:
         logger.error(f"⚠️ Ошибка при выводе расписания на сегодня: {e}")
         await message.answer("⚠️ Ошибка при получении расписания.")
-
-
-@router.callback_query(F.data=="professor_schedule")
-async def professor_schedule(callback: CallbackQuery):
-    await callback.message.edit_text("Этот функционал ещё не доступен 😢")
-    await callback.answer()
 
 
 @router.callback_query(F.data == "weekly_schedule")
@@ -169,7 +164,7 @@ async def weekly_schedule(callback: CallbackQuery):
                 await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
                 return
 
-            messages = format_schedule(
+            messages = format_schedule_students(
                 lessons,
                 week=current_week,
                 header_prefix=f"📅 Расписание группы {user.group.group_name} на текущую неделю"
@@ -222,7 +217,7 @@ async def next_week_schedule(callback: CallbackQuery):
                 await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
                 return
 
-            messages = format_schedule(
+            messages = format_schedule_students(
                 lessons,
                 week=next_week,
                 header_prefix=f"📅 Расписание группы {user.group.group_name} на следующую неделю"
@@ -257,6 +252,7 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
         return
     await callback.message.edit_text(f"Выберите группу факультета {faculty_name}:", reply_markup=groups_kb)
     await state.set_state(ShowScheduleStates.choice_group)
+
 
 @router.callback_query(StateFilter(ShowScheduleStates.choice_group), F.data.startswith("group:"))
 async def choice_type_week(callback: CallbackQuery, state: FSMContext):
@@ -293,7 +289,11 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(f"Расписание для {group_name} пустое.")
             return
 
-        messages = format_schedule(lessons=lessons, week=week, header_prefix=f"📅 Расписание для {group_name}")
+        messages = format_schedule_students(
+            lessons=lessons,
+            week=week,
+            header_prefix=f"📅 Расписание для {group_name}"
+        )
 
         if not messages:
             await callback.message.edit_text(f"На выбранную неделю ({week}) расписание для {group_name} пустое.")
