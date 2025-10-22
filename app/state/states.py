@@ -20,3 +20,7 @@ class AddAdminStates(StatesGroup):
 
 class DeleteUsersBDStates(StatesGroup):
     confirm_delete = State()
+
+class ProfessorScheduleStates(StatesGroup):
+    waiting_name = State()
+    waiting_type_week = State()
