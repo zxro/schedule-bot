@@ -8,7 +8,7 @@ from sys import exit
 
 base_dir = Path(__file__).resolve().parent.parent
 dotenv_path = base_dir / "config" / ".env"
-if (not dotenv_path.exists()) :
+if not dotenv_path.exists():
     exit(".env file not found in config/.env")
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -38,11 +38,18 @@ class Settings(BaseSettings):
             db_path.parent.mkdir(parents=True, exist_ok=True)
             self.DB_TIMETABLE_URL = f"sqlite+aiosqlite:///{db_path}"
 
+    # if not self.LIST_ADMINS_URL:
+    #     list_adm = base_dir / "data" / "list_admins.json"
+    #     list_adm.parent.mkdir(parents=True, exist_ok=True)
+    #     self.DB_TIMETABLE_URL = f"{list_adm}"
+
     TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
     TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
+    ADMIN_PASSWORD: str = Field(..., validation_alias='ADMIN_PASSWORD')
 
     TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
     DB_TIMETABLE_URL: str = Field(default="")
+    LIST_ADMINS_URL: str = Field(default="")
 
     REQUEST_CONCURRENCY: int = Field(..., validation_alias='REQUEST_CONCURRENCY')
     REQUEST_DELAY: float = Field(..., validation_alias='REQUEST_DELAY')

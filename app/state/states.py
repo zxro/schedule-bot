@@ -17,3 +17,6 @@ class RegistrationStates(StatesGroup):
 
 class AddAdminStates(StatesGroup):
     waiting_id = State()
+
+class DeleteUsersBDStates(StatesGroup):
+    confirm_delete = State()
