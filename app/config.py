@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     @field REQUEST_CONCURRENCY Ограничения числа одновременно выполняющихся запросов
     @field REQUEST_DELAY Пуза между запросами
     @field MAX_RETRIES Максимальное количество повторов запросов
-    @field RETRY_BACKOFF_FACTOR
+    @field RETRY_BACKOFF_FACTOR Множитель для экспоненциальной задержки
 
     @field CLASSES Расписание занятий
     @field RETAKE Расписание пересдач
@@ -37,11 +37,6 @@ class Settings(BaseSettings):
             db_path = base_dir / "data" / "TimetableTvSU.db"
             db_path.parent.mkdir(parents=True, exist_ok=True)
             self.DB_TIMETABLE_URL = f"sqlite+aiosqlite:///{db_path}"
-
-    # if not self.LIST_ADMINS_URL:
-    #     list_adm = base_dir / "data" / "list_admins.json"
-    #     list_adm.parent.mkdir(parents=True, exist_ok=True)
-    #     self.DB_TIMETABLE_URL = f"{list_adm}"
 
     TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
     TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
