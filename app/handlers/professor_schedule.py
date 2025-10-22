@@ -315,7 +315,7 @@ async def handle_professor_week(callback: CallbackQuery):
         messages = format_schedule_professor(
             lessons,
             week=week_type,
-            header_prefix=f"👨‍🏫 Расписание {professor.name}"
+            header_prefix=f"👨‍🏫 Расписание {professor.name} на неделю"
         )
 
         await callback.message.delete()
