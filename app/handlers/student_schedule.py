@@ -35,15 +35,18 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
 
     Действия:
     - Очищает состояние.
-    - Сообщает пользователю об отмене.
+    - Возвращает клавиатуру с расписаниями.
     """
 
     await state.clear()
     try:
         await callback.answer()
-        await callback.message.delete()
+        await callback.message.edit_text(
+            text="Выберите расписание которое хотите посмотреть:",
+            reply_markup=get_other_schedules_kb()
+        )
     except Exception as e:
-        logger.error(f"Не удалось удалить сообщение: {e}")
+        logger.error(f"Не удалось изменить сообщение: {e}")
 
 
 @router.callback_query(F.data=="exit_other_schedules")
