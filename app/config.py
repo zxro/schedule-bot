@@ -1,35 +1,40 @@
+import logging
+import sys
 from pathlib import Path
-
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from dotenv import load_dotenv
 
-from sys import exit
+logger = logging.getLogger(__name__)
 
 base_dir = Path(__file__).resolve().parent.parent
 dotenv_path = base_dir / "config" / ".env"
 if not dotenv_path.exists():
-    exit(".env file not found in config/.env")
+    logger.error(f".env the file was not found on the way: {dotenv_path}")
+    sys.exit(1)
+
 load_dotenv(dotenv_path=dotenv_path)
 
 class Settings(BaseSettings):
     """
-    @brief Настройки бота, загружаемые из переменных окружения
+    Настройки бота, загружаемые из переменных окружения
 
-    @field BOT_TOKEN Токен Telegram-бота
-    @field TELEGRAM_LOG_CHAT_ID Чат для логов
-    @field ADMIN_PASSWORD Пароль для подтверждения действий
+    Поля:
+        TELEGRAM_BOT_TOKEN: Токен Telegram-бота
+        TELEGRAM_LOG_CHAT_ID: Чат для логов
+        ADMIN_PASSWORD: Пароль для подтверждения действий
 
-    @field TIMETABLE_API_BASE URL для подключения к сайту университета
-    @field DB_TIMETABLE_URL URL для подключения к базе данных
+        TIMETABLE_API_BASE: URL для подключения к сайту университета
+        DB_TIMETABLE_URL: URL для подключения к базе данных
+        LIST_ADMINS_URL: URL для списка администраторов
 
-    @field REQUEST_CONCURRENCY Ограничения числа одновременно выполняющихся запросов
-    @field REQUEST_DELAY Пуза между запросами
-    @field MAX_RETRIES Максимальное количество повторов запросов
-    @field RETRY_BACKOFF_FACTOR Множитель для экспоненциальной задержки
+        REQUEST_CONCURRENCY: Ограничения числа одновременно выполняющихся запросов
+        REQUEST_DELAY: Пауза между запросами
+        MAX_RETRIES: Максимальное количество повторов запросов
+        RETRY_BACKOFF_FACTOR: Множитель для экспоненциальной задержки
 
-    @field CLASSES Тип расписания: занятия
-    @field RETAKE Тип расписания: пересдачи
+        CLASSES: Тип расписания: занятия
+        RETAKE: Тип расписания: пересдачи
     """
 
     def __init__(self, **kwargs):
@@ -39,20 +44,24 @@ class Settings(BaseSettings):
             db_path.parent.mkdir(parents=True, exist_ok=True)
             self.DB_TIMETABLE_URL = f"sqlite+aiosqlite:///{db_path}"
 
-    TELEGRAM_BOT_TOKEN: str = Field(..., validation_alias='TELEGRAM_BOT_TOKEN')
-    TELEGRAM_LOG_CHAT_ID: int = Field(..., validation_alias='TELEGRAM_LOG_CHAT_ID')
-    ADMIN_PASSWORD: str = Field(..., validation_alias='ADMIN_PASSWORD')
+    TELEGRAM_BOT_TOKEN: str = Field(default=..., validation_alias='TELEGRAM_BOT_TOKEN')
+    TELEGRAM_LOG_CHAT_ID: int = Field(default=..., validation_alias='TELEGRAM_LOG_CHAT_ID')
+    ADMIN_PASSWORD: str = Field(default=..., validation_alias='ADMIN_PASSWORD')
 
-    TIMETABLE_API_BASE: str = Field(..., validation_alias='TIMETABLE_API_BASE')
+    TIMETABLE_API_BASE: str = Field(default=..., validation_alias='TIMETABLE_API_BASE')
     DB_TIMETABLE_URL: str = Field(default="")
-    LIST_ADMINS_URL: str = Field(default="")
 
-    REQUEST_CONCURRENCY: int = Field(..., validation_alias='REQUEST_CONCURRENCY')
-    REQUEST_DELAY: float = Field(..., validation_alias='REQUEST_DELAY')
-    MAX_RETRIES: int = Field(..., validation_alias='MAX_RETRIES')
-    RETRY_BACKOFF_FACTOR: float = Field(..., validation_alias='RETRY_BACKOFF_FACTOR')
+    REQUEST_CONCURRENCY: int = Field(default=..., validation_alias='REQUEST_CONCURRENCY')
+    REQUEST_DELAY: float = Field(default=..., validation_alias='REQUEST_DELAY')
+    MAX_RETRIES: int = Field(default=..., validation_alias='MAX_RETRIES')
+    RETRY_BACKOFF_FACTOR: float = Field(default=..., validation_alias='RETRY_BACKOFF_FACTOR')
 
-    CLASSES: str = Field(..., validation_alias='CLASSES')
-    RETAKE: str = Field(..., validation_alias='RETAKE')
+    CLASSES: str = Field(default=..., validation_alias='CLASSES')
+    RETAKE: str = Field(default=..., validation_alias='RETAKE')
 
-settings = Settings()
+try:
+    settings = Settings()
+    logger.info("✅ Настройки успешно загружены")
+except Exception as e:
+    logger.error(f"❌ Ошибка загрузки настроек: {e}")
+    sys.exit(1)
