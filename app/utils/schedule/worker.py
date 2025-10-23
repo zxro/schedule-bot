@@ -17,34 +17,17 @@
 """
 
 import logging
-import re
 from typing import List, Set
 
 from app.keyboards.init_keyboards import refresh_all_keyboards
 from app.utils.schedule.fetcher import TimetableClient
-from app.utils.schedule.parser import extract_lessons_from_timetable_json
+from app.utils.schedule.parser import extract_lessons_from_timetable_json, extract_professor_names
 from app.database.db import AsyncSessionLocal
 from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLesson
 from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-def extract_professor_names(professors_text: str) -> list[str]:
-    """
-    Извлекает имена преподавателей из текста, убирая должности в скобках.
-    """
-
-    if not professors_text:
-        return []
-
-    # Убираем должности в скобках
-    cleaned_text = re.sub(r'\([^)]*\)', '', professors_text)
-
-    names = [name.strip() for name in cleaned_text.split(',') if name.strip()]
-
-    return names
 
 
 async def ensure_faculty_and_group(session: AsyncSession, faculty_name: str, group_name: str):
@@ -266,38 +249,38 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
 
         valid_groups: Set[str] = set()
 
-        for idx, g in enumerate(groups):
-            if limit_groups and idx >= limit_groups:
-                break
-
-            group_name = g.get("groupName")
-            faculty_name = g.get("facultyName")
-            if not group_name:
-                continue
-
-            try:
-                group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
-
-                tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
-                if isinstance(tt_json, dict) and tt_json.get("message"):
-                    logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
-                    continue
-
-                records = extract_lessons_from_timetable_json(group_name, tt_json)
-                if not records:
-                    logger.info("Для группы %s нет расписания", group_name)
-                    continue
-
-                inserted = await upsert_lessons_for_group(session, group_obj, records)
-                valid_groups.add(group_name)
-
-                await session.commit()
-                logger.info("Обработана группа %s → %d пар", group_name, inserted)
-
-            except Exception as e:
-                await session.rollback()
-                logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
-                continue
+        # for idx, g in enumerate(groups):
+        #     if limit_groups and idx >= limit_groups:
+        #         break
+        #
+        #     group_name = g.get("groupName")
+        #     faculty_name = g.get("facultyName")
+        #     if not group_name:
+        #         continue
+        #
+        #     try:
+        #         group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
+        #
+        #         tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
+        #         if isinstance(tt_json, dict) and tt_json.get("message"):
+        #             logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
+        #             continue
+        #
+        #         records = extract_lessons_from_timetable_json(group_name, tt_json)
+        #         if not records:
+        #             logger.info("Для группы %s нет расписания", group_name)
+        #             continue
+        #
+        #         inserted = await upsert_lessons_for_group(session, group_obj, records)
+        #         valid_groups.add(group_name)
+        #
+        #         await session.commit()
+        #         logger.info("Обработана группа %s → %d пар", group_name, inserted)
+        #
+        #     except Exception as e:
+        #         await session.rollback()
+        #         logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
+        #         continue
 
         try:
             await upsert_lessons_for_professors(session)
@@ -306,15 +289,16 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
             await session.rollback()
             logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
 
-        deleted_groups = 0
-        q = await session.execute(select(Group))
-        existing_groups = q.scalars().all()
-        for grp in existing_groups:
-            if grp.group_name not in valid_groups:
-                deleted_groups += 1
-                await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
-                await session.delete(grp)
-                logger.info("Удалена группа без расписания: %s", grp.group_name)
+        # deleted_groups = 0
+        # q = await session.execute(select(Group))
+        # existing_groups = q.scalars().all()
+        # for grp in existing_groups:
+        #     if grp.group_name not in valid_groups:
+        #         deleted_groups += 1
+        #         await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
+        #         await session.delete(grp)
+        #         logger.info("Удалена группа без расписания: %s", grp.group_name)
+        #
 
         deleted_profs = 0
         q = await session.execute(select(Professor))
@@ -331,7 +315,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
         await client.close()
 
     logger.info("✅ Полная синхронизация завершена.")
-    logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
+    # logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
     logger.info("Преподавателей: %d, удалено: %d", len(existing_profs) - deleted_profs, deleted_profs)
 
     await refresh_all_keyboards()

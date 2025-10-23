@@ -56,7 +56,7 @@ async def exit_other_schedules(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.message((F.text == "Другие расписания") | (F.text == "Расписания"))
+@router.message((F.text == "Другое расписание") | (F.text == "Расписания"))
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
@@ -299,7 +299,9 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
         )
 
         if not messages:
-            await callback.message.edit_text(f"На выбранную неделю ({week}) расписание для {group_name} пустое.")
+            await callback.message.edit_text(
+                f"На выбранную неделю ({week_mark.WEEK_MARK_STICKER}) расписание для {group_name} пустое."
+            )
             return
 
         await callback.message.edit_text(messages[0], parse_mode="MarkdownV2", disable_web_page_preview=True)

@@ -5,19 +5,164 @@ from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from sqlalchemy import select
 
-from app.database.db import AsyncSessionLocal
 from app.database.models import Professor
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils import week_mark
-
+from app.utils.schedule.search_professors import get_exact_professor_match, search_professors_fuzzy
 from app.utils.schedule.worker import get_lesson_for_professor
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+async def get_professor_schedule_for_today(professor_name: str):
+    """
+    Получает расписание преподавателя на сегодня.
+
+    Параметры:
+        professor_name (str): Имя преподавателя
+
+    Возвращает:
+        Tuple[Professor, List, List, str]:
+            - Professor объект или None
+            - Все занятия преподавателя
+            - Отфильтрованные занятия на сегодня
+            - Текущий тип недели
+    """
+    current_weekday = datetime.now().isoweekday()
+    professor, all_lessons = await get_lesson_for_professor(professor_name)
+
+    if not professor or not all_lessons:
+        return professor, all_lessons, [], ""
+
+    today_lessons = [lesson for lesson in all_lessons if lesson.weekday == current_weekday]
+
+    current_week = week_mark.WEEK_MARK_TXT
+    week_filter = "plus" if current_week == "plus" else "minus"
+
+    filtered_lessons = [
+        lesson for lesson in today_lessons
+        if lesson.week_mark in (week_filter, "every", None)
+    ]
+
+    return professor, all_lessons, filtered_lessons, week_filter
+
+
+async def show_professor_schedule_menu(message: Message, professor_name: str, state: FSMContext):
+    """
+    Показывает меню выбора типа расписания для преподавателя с автоматическим отображением расписания на сегодня.
+
+    Параметры:
+        message (Message): Сообщение для ответа
+        professor_name (str): Имя преподавателя
+        state (FSMContext): Контекст состояния
+    """
+
+    await state.update_data(professor_name=professor_name)
+
+    schedule_type_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📅 Сегодня", callback_data=f"prof_today:{professor_name}"),
+            ],
+            [
+                InlineKeyboardButton(text="➕ Неделя", callback_data=f"prof_week_plus:{professor_name}"),
+                InlineKeyboardButton(text="➖ Неделя", callback_data=f"prof_week_minus:{professor_name}"),
+            ],
+            [
+                InlineKeyboardButton(text="🗓 Вся неделя", callback_data=f"prof_week_full:{professor_name}"),
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")
+            ]
+        ]
+    )
+
+    try:
+        professor, all_lessons, filtered_lessons, week_filter = await get_professor_schedule_for_today(professor_name)
+
+        if professor and filtered_lessons:
+            header_prefix = f"👨‍🏫 *Расписание {professor.name} на сегодня*"
+            messages = format_schedule_professor(
+                filtered_lessons,
+                week=week_filter,
+                header_prefix=header_prefix
+            )
+
+            if messages:
+                len_messages = len(messages)
+                if len_messages > 1:
+                    logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
+
+                for i, msg_text in enumerate(messages):
+                    is_last = (i == len_messages - 1)
+                    await message.answer(
+                        msg_text,
+                        reply_markup=schedule_type_kb if is_last else None,
+                        parse_mode="MarkdownV2",
+                        disable_web_page_preview=True
+                    )
+                return
+
+        weekday_names = {
+            1: "Понедельник", 2: "Вторник", 3: "Среда",
+            4: "Четверг", 5: "Пятница", 6: "Суббота", 7: "Воскресенье"
+        }
+
+        current_weekday = datetime.now().isoweekday()
+        current_day_name = weekday_names.get(current_weekday, "сегодня")
+
+        await message.answer(
+            text=f"👨‍🏫 *Расписание {escape_md_v2(professor_name)}*\n\n"
+                 f"📅 *{current_day_name}* {week_mark.WEEK_MARK_STICKER}\n\n"
+                 f"Сегодня пар нет\\.\n\n",
+            reply_markup=schedule_type_kb,
+            parse_mode="MarkdownV2"
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении расписания на сегодня для {professor_name}: {e}")
+        await message.answer(
+            text=f"👨‍🏫 Преподаватель: `{escape_md_v2(professor_name)}`\n\n"
+                 "Выберите тип расписания:",
+            reply_markup=schedule_type_kb,
+            parse_mode="MarkdownV2"
+        )
+
+
+async def show_professor_selection_keyboard(message: Message, professors: list[Professor], query: str):
+    """
+    Показывает клавиатуру с найденными преподавателями для выбора.
+
+    Параметры:
+        message (Message): Сообщение для ответа
+        professors (list[Professor]): Список найденных преподавателей
+        query (str): Исходный поисковый запрос
+    """
+    keyboard = []
+
+    for professor in professors:
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"👨‍🏫 {professor.name}",
+                callback_data=f"select_prof:{professor.name}"
+            )
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")
+    ])
+
+    selection_kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await message.answer(
+        text=f"🔍 По запросу `{escape_md_v2(query)}` найдено несколько преподавателей\\.\n\n",
+        reply_markup=selection_kb,
+        parse_mode="MarkdownV2"
+    )
 
 
 @router.callback_query(F.data == "cancel")
@@ -73,7 +218,7 @@ async def professor_schedule(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         text="👨‍🏫 Введите фамилию и инициалы преподавателя:\n\n"
-             "Например: `Иванов И\\.И\\.`",
+             "Например: `Иванов И И`",
         reply_markup=cancel_kb,
         parse_mode="MarkdownV2"
     )
@@ -87,21 +232,14 @@ async def waiting_name(message: Message, state: FSMContext):
     """
     Обработчик текстового ввода имени преподавателя пользователем.
 
-    Проверяет корректность введённого имени и отображает клавиатуру с вариантами
-    просмотра расписания.
+    Использует RapidFuzz для нечеткого поиска преподавателей:
+    - При точном совпадении сразу показывает расписание
+    - При нескольких совпадениях показывает клавиатуру для выбора
+    - При отсутствии совпадений показывает ошибку
 
     Параметры:
         message (Message): Сообщение от пользователя.
         state (FSMContext): Контекст FSM, содержащий данные, сохранённые ранее.
-
-    Проверка:
-        - Проверяет, что имя не короче 3 символов и содержит хотя бы одну букву.
-        - В противном случае — сообщает об ошибке и предлагает повторить ввод.
-
-    Логика:
-        - Удаляет предыдущее сообщение, если сохранён его ID.
-        - Сохраняет имя преподавателя в FSM.
-        - Отправляет пользователю меню выбора типа расписания.
     """
 
     data = await state.get_data()
@@ -114,47 +252,57 @@ async def waiting_name(message: Message, state: FSMContext):
 
     name = message.text.strip()
 
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(Professor).where(Professor.name.ilike(f"%{name}%"))
-        )
-
-    professor = result.scalars().first()
-    if not professor:
+    if len(name) < 2:
         await message.answer(
-            text=f"❌ Преподаватель `{name}` не найден в базе данных\\.\n\n"
-                 "Проверьте написание и попробуйте снова\\.",
+            text="❌ Слишком короткий запрос\\. Введите фамилию и инициалы преподавателя\\.",
             reply_markup=get_other_schedules_kb(),
             parse_mode="MarkdownV2"
         )
         return
 
-    await state.update_data(professor_name=name)
+    # Точное совпадение
+    exact_professor = await get_exact_professor_match(name)
+    if exact_professor:
+        await show_professor_schedule_menu(message, exact_professor.name, state)
+        return
 
-    schedule_type_kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="📅 Сегодня", callback_data=f"prof_today:{name}"),
-            ],
-            [
-                InlineKeyboardButton(text="➕ Неделя", callback_data=f"prof_week_plus:{name}"),
-                InlineKeyboardButton(text="➖ Неделя", callback_data=f"prof_week_minus:{name}"),
-            ],
-            [
-                InlineKeyboardButton(text="🗓 Вся неделя", callback_data=f"prof_week_full:{name}"),
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")
-            ]
-        ]
-    )
+    # Похожие преподаватели
+    matched_professors = await search_professors_fuzzy(name, limit=5)
 
-    await message.answer(
-        text=f"👨‍🏫 Преподаватель: `{name}`\n\n"
-             "Выберите тип расписания:",
-        reply_markup=schedule_type_kb,
-        parse_mode="MarkdownV2"
-    )
+    if not matched_professors:
+        await message.answer(
+            text=f"❌ Преподаватель `{escape_md_v2(name)}` не найден в базе данных\\.\n\n"
+                 "Проверьте написание и попробуйте снова\\.",
+            reply_markup=get_other_schedules_kb(),
+            parse_mode="MarkdownV2"
+        )
+        await state.clear()
+        return
+
+    if len(matched_professors) == 1:
+        best_match = matched_professors[0]
+        await show_professor_schedule_menu(message, best_match.name, state)
+        await state.clear()
+        return
+
+    await show_professor_selection_keyboard(message, matched_professors, name)
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("select_prof:"))
+async def handle_professor_selection(callback: CallbackQuery, state: FSMContext):
+    """
+    Обработчик выбора преподавателя из списка.
+
+    Параметры:
+        callback (CallbackQuery): Callback с выбранным преподавателем
+        state (FSMContext): Контекст состояния
+    """
+    professor_name = callback.data.split(":")[1]
+
+    await callback.message.delete()
+    await show_professor_schedule_menu(callback.message, professor_name, state)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("prof_today:"))
@@ -183,9 +331,7 @@ async def handle_professor_today(callback: CallbackQuery):
     professor_name = ""
     try:
         professor_name = callback.data.split(":")[1]
-        current_weekday = datetime.now().isoweekday()
-
-        professor, all_lessons = await get_lesson_for_professor(professor_name)
+        professor, all_lessons, filtered_lessons, week_filter = await get_professor_schedule_for_today(professor_name)
 
         if not professor:
             await callback.message.edit_text(f"❌ Преподаватель {professor_name} не найден.")
@@ -197,24 +343,15 @@ async def handle_professor_today(callback: CallbackQuery):
             await callback.answer()
             return
 
-        today_lessons = [lesson for lesson in all_lessons if lesson.weekday == current_weekday]
-
-        current_week = week_mark.WEEK_MARK_TXT
-        week_filter = "plus" if current_week == "plus" else "minus"
-
-        filtered_lessons = [
-            lesson for lesson in today_lessons
-            if lesson.week_mark in (week_filter, "every", None)
-        ]
-
         if not filtered_lessons:
             weekday_names = {
                 1: "Понедельник", 2: "Вторник", 3: "Среда",
                 4: "Четверг", 5: "Пятница", 6: "Суббота", 7: "Воскресенье"
             }
 
-            new_text = (f"👨‍🏫 Расписание {escape_md_v2(professor.name)}\n"
-                        f"📅 *{weekday_names[current_weekday]}*\n\n"
+            current_weekday = datetime.now().isoweekday()
+            new_text = (f"👨‍🏫 *Расписание {escape_md_v2(professor.name)}*\n\n"
+                        f"📅 *{weekday_names[current_weekday]}* {week_mark.WEEK_MARK_STICKER}\n\n"
                         f"Сегодня пар нет\\.")
 
             try:
