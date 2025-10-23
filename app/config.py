@@ -61,7 +61,6 @@ class Settings(BaseSettings):
 
 try:
     settings = Settings()
-    logger.info("✅ Настройки успешно загружены")
 except Exception as e:
     logger.error(f"❌ Ошибка загрузки настроек: {e}")
     sys.exit(1)
