@@ -26,10 +26,10 @@ def escape_md_v2(text: str) -> str:
     не интерпретировались как разметка. Эта функция добавляет обратный слэш
     перед каждым спецсимволом из списка, чтобы текст отображался корректно.
 
-    Args:
+    Параметры:
         text (str): Исходный текст.
 
-    Returns:
+    Возвращает:
         str: Экранированный текст, безопасный для использования с MarkdownV2.
     """
 
@@ -40,19 +40,21 @@ def escape_md_v2(text: str) -> str:
 
 
 @router.callback_query(F.data=="exit_admin_panel", IsAdminFilter())
-async def exit_admin_panel(callback: CallbackQuery):
+async def exit_admin_panel(callback: CallbackQuery, state: FSMContext):
     """
     Закрывает окно административной панели.
 
     Действия:
         Удаляет сообщение с панелью администратора.
 
-    Args:
+    Параметры:
         callback (CallbackQuery): Объект callback-запроса от Telegram.
+        state (FSMContext): Контекст конечного автомата состояний FSM.
     """
 
     await callback.message.delete()
     await callback.answer()
+    await state.clear()
 
 
 @router.message(F.text == "Админ панель", IsAdminFilter())
@@ -64,7 +66,7 @@ async def admin_panel_message(message: Message, state: FSMContext):
     1. Очищает текущее состояние FSM (если оно было установлено ранее).
     2. Отправляет пользователю сообщение с интерфейсом панели администратора.
 
-    Args:
+    Параметры:
         message (Message): Объект сообщения от пользователя.
         state (FSMContext): Контекст конечного автомата состояний FSM.
     """
@@ -83,7 +85,7 @@ async def admin_panel_callback(callback: CallbackQuery, state: FSMContext):
     2. Очищает состояние FSM.
     3. Подтверждает получение callback-запроса.
 
-    Args:
+    Параметры:
         callback (CallbackQuery): Объект callback-запроса.
         state (FSMContext): Контекст состояния FSM.
     """
@@ -104,7 +106,7 @@ async def add_admin(callback: CallbackQuery, state: FSMContext):
     3. Переводит FSM в состояние ожидания ID (`AddAdminStates.waiting_id`).
     4. Сохраняет ID сообщения, чтобы потом его можно было удалить.
 
-    Args:
+    Параметры:
         callback (CallbackQuery): Объект callback-запроса.
         state (FSMContext): Контекст состояния FSM.
     """
@@ -136,11 +138,11 @@ async def reading_id(message: Message, state: FSMContext):
     6. Добавляет пользователя в список администраторов.
     7. Обрабатывает ошибки и очищает состояние FSM.
 
-    Args:
+    Параметры:
         message (Message): Объект сообщения с введённым ID.
         state (FSMContext): Контекст состояния FSM.
 
-    Raises:
+    Исключения:
         ValueError: Если введённое значение не является числом.
         Exception: Любые другие ошибки работы с БД или Telegram API.
     """
@@ -212,7 +214,7 @@ async def list_admins(callback: CallbackQuery):
     4. Добавляет кнопки для удаления других администраторов.
     5. Добавляет справку с ссылками, если tg:// ссылка не работает.
 
-    Args:
+    Параметры:
         callback (CallbackQuery): Объект callback-запроса.
     """
 
@@ -282,10 +284,10 @@ async def remove_admin_handler(callback: CallbackQuery):
     4. Удаляет администратора из списка LIST_ADMINS.
     5. Логирует все действия и отправляет уведомление.
 
-    Args:
+    Параметры:
         callback (CallbackQuery): Объект callback-запроса.
 
-    Raises:
+    Исключения:
         ValueError: Если ID некорректный.
         IndexError: Если формат callback.data некорректен.
         Exception: Любые другие ошибки в процессе удаления.
