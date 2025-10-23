@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     @field BOT_TOKEN Токен Telegram-бота
     @field TELEGRAM_LOG_CHAT_ID Чат для логов
+    @field ADMIN_PASSWORD Пароль для подтверждения действий
 
     @field TIMETABLE_API_BASE URL для подключения к сайту университета
     @field DB_TIMETABLE_URL URL для подключения к базе данных
@@ -27,8 +28,8 @@ class Settings(BaseSettings):
     @field MAX_RETRIES Максимальное количество повторов запросов
     @field RETRY_BACKOFF_FACTOR Множитель для экспоненциальной задержки
 
-    @field CLASSES Расписание занятий
-    @field RETAKE Расписание пересдач
+    @field CLASSES Тип расписания: занятия
+    @field RETAKE Тип расписания: пересдачи
     """
 
     def __init__(self, **kwargs):
