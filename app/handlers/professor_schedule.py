@@ -243,11 +243,12 @@ async def handle_professor_today(callback: CallbackQuery):
         await callback.message.delete()
 
         if messages:
-            if len(messages) > 1:
+            len_messages = len(messages)
+            if len_messages > 1:
                 logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
 
             for i, msg_text in enumerate(messages):
-                is_last = (i == len(messages) - 1)
+                is_last = (i == len_messages - 1)
                 await callback.message.answer(
                     msg_text,
                     reply_markup=callback.message.reply_markup if is_last else None,
@@ -321,11 +322,12 @@ async def handle_professor_week(callback: CallbackQuery):
         await callback.message.delete()
 
         if messages:
-            if len(messages) > 1:
+            len_messages = len(messages)
+            if len_messages > 1:
                 logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
 
             for i, msg_text in enumerate(messages):
-                is_last = (i == len(messages) - 1)
+                is_last = (i == len_messages - 1)
                 await callback.message.answer(
                     msg_text,
                     reply_markup=callback.message.reply_markup if is_last else None,
