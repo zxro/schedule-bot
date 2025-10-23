@@ -10,6 +10,7 @@ from app.database.db import AsyncSessionLocal
 from app.database.models import User
 from app.config import settings
 from app.filters.is_admin import IsAdminFilter
+from app.keyboards.admin_kb import get_admin_kb
 from app.state.states import DeleteUsersBDStates
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
@@ -39,11 +40,11 @@ async def cancel_delete_users(callback: CallbackQuery, state: FSMContext):
     """
 
     await state.clear()
-    await callback.message.edit_text("Удаление БД с пользователями отменено")
+    await callback.message.edit_text("❌ Удаление БД с пользователями отменено")
     await callback.answer()
 
     await asyncio.sleep(1)
-    await callback.message.delete()
+    await callback.message.edit_text(text="Админ панель:", reply_markup=get_admin_kb())
 
 
 @router.callback_query(F.data=="clear_user_db", IsAdminFilter())
