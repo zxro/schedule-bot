@@ -85,7 +85,7 @@ async def show_professor_schedule_menu(message: Message, professor_name: str, st
         professor, all_lessons, filtered_lessons, week_filter = await get_professor_schedule_for_today(professor_name)
 
         if professor and filtered_lessons:
-            header_prefix = f"👨‍🏫 *Расписание {professor.name} на сегодня*"
+            header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на сегодня"
             messages = format_schedule_professor(
                 filtered_lessons,
                 week=week_filter,
@@ -116,7 +116,7 @@ async def show_professor_schedule_menu(message: Message, professor_name: str, st
         current_day_name = weekday_names.get(current_weekday, "сегодня")
 
         await message.answer(
-            text=f"👨‍🏫 *Расписание {escape_md_v2(professor_name)}*\n\n"
+            text=f"👨‍🏫 *Расписание преподавателя {escape_md_v2(professor_name)}*\n\n"
                  f"📅 *{current_day_name}* {week_mark.WEEK_MARK_STICKER}\n\n"
                  f"Сегодня пар нет\\.\n\n",
             reply_markup=schedule_type_kb,
@@ -126,7 +126,7 @@ async def show_professor_schedule_menu(message: Message, professor_name: str, st
     except Exception as e:
         logger.error(f"Ошибка при получении расписания на сегодня для {professor_name}: {e}")
         await message.answer(
-            text=f"👨‍🏫 Преподаватель: `{escape_md_v2(professor_name)}`\n\n"
+            text=f"👨‍🏫 *Преподаватель: {escape_md_v2(professor_name)}*\n\n"
                  "Выберите тип расписания:",
             reply_markup=schedule_type_kb,
             parse_mode="MarkdownV2"
@@ -271,7 +271,7 @@ async def waiting_name(message: Message, state: FSMContext):
 
     if not matched_professors:
         await message.answer(
-            text=f"❌ Преподаватель `{escape_md_v2(name)}` не найден в базе данных\\.\n\n"
+            text=f"❌ Преподаватель `{escape_md_v2(name)}` не найден\\.\n\n"
                  "Проверьте написание и попробуйте снова\\.",
             reply_markup=get_other_schedules_kb(),
             parse_mode="MarkdownV2"
@@ -339,7 +339,7 @@ async def handle_professor_today(callback: CallbackQuery):
             return
 
         if not all_lessons:
-            await callback.message.edit_text(f"❌ Нет расписания для {professor_name}.")
+            await callback.message.edit_text(f"❌ Нет расписания для преподавателя {professor_name}.")
             await callback.answer()
             return
 
@@ -350,7 +350,7 @@ async def handle_professor_today(callback: CallbackQuery):
             }
 
             current_weekday = datetime.now().isoweekday()
-            new_text = (f"👨‍🏫 *Расписание {escape_md_v2(professor.name)}*\n\n"
+            new_text = (f"👨‍🏫 *Расписание преподавателя {escape_md_v2(professor.name)}*\n\n"
                         f"📅 *{weekday_names[current_weekday]}* {week_mark.WEEK_MARK_STICKER}\n\n"
                         f"Сегодня пар нет\\.")
 
@@ -370,7 +370,7 @@ async def handle_professor_today(callback: CallbackQuery):
             await callback.answer(f"Сегодня нет пар у {professor.name}")
             return
 
-        header_prefix = f"👨‍🏫 Расписание {professor.name} на сегодня"
+        header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на сегодня"
         messages = format_schedule_professor(
             filtered_lessons,
             week=week_filter,
@@ -440,7 +440,7 @@ async def handle_professor_week(callback: CallbackQuery):
             return
 
         if not lessons:
-            await callback.message.edit_text(f"❌ Нет расписания для {professor_name}")
+            await callback.message.edit_text(f"❌ Нет расписания для преподавателя {professor_name}")
             await callback.answer()
             return
 
@@ -450,10 +450,15 @@ async def handle_professor_week(callback: CallbackQuery):
             "full": "🗓 Вся неделя"
         }
 
+        if week_type == "full":
+            header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name}"
+        else:
+            header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на неделю"
+
         messages = format_schedule_professor(
             lessons,
             week=week_type,
-            header_prefix=f"👨‍🏫 Расписание {professor.name} на неделю"
+            header_prefix=header_prefix
         )
 
         await callback.message.delete()

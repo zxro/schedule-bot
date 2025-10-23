@@ -292,10 +292,14 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(f"Расписание для {group_name} пустое.")
             return
 
+        if week == "full":
+            header_prefix = f"📅 Полное расписание для {group_name}"
+        else:
+            header_prefix = f"📅 Расписание для {group_name} на неделю"
         messages = format_schedule_students(
             lessons=lessons,
             week=week,
-            header_prefix=f"📅 Расписание для {group_name}"
+            header_prefix=header_prefix
         )
 
         if not messages:

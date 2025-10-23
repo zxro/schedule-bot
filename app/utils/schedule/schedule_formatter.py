@@ -136,7 +136,7 @@ def _get_header(header_prefix: str, week: str):
     Формирует заголовок расписания в зависимости от типа недели.
 
     Параметры:
-        header_prefix (str): Префикс заголовка (например, "📅 Расписание").
+        header_prefix (str): Префикс заголовка
         week (str): Тип недели ("plus", "minus", "full").
     Возвращает:
         str: Текст заголовка в MarkdownV2.
@@ -144,9 +144,9 @@ def _get_header(header_prefix: str, week: str):
 
     header_prefix = f"*{escape_md_v2(header_prefix)}*"
     return {
-        "plus": f"{header_prefix}\nНеделя ➕\n\n",
-        "minus": f"{header_prefix}\nНеделя ➖\n\n",
-        "full": f"{header_prefix}\nПолное расписание:\n\n"
+        "plus": f"{header_prefix} ➕\n\n",
+        "minus": f"{header_prefix} ➖\n\n",
+        "full": f"{header_prefix}\n\n"
     }.get(week, f"{header_prefix}\n\n")
 
 
