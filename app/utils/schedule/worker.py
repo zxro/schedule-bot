@@ -15,7 +15,7 @@
 - AsyncSessionLocal (app/db.py): фабрика асинхронных сессий SQLAlchemy.
 - SQLAlchemy модели: Faculty, Group, Lesson, TimeSlot, WeekMarkEnum.
 """
-
+import asyncio
 import logging
 from typing import List, Set
 
@@ -27,7 +27,13 @@ from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLess
 from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.utils.schedule.search_professors import get_cached_professors
+
 logger = logging.getLogger(__name__)
+
+
+CACHE_UPDATE_ENABLED = True
+_cache_lock = asyncio.Lock()
 
 
 async def ensure_faculty_and_group(session: AsyncSession, faculty_name: str, group_name: str):
@@ -237,85 +243,118 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
     5. Обновляет клавиатуры.
     """
 
+    global CACHE_UPDATE_ENABLED
+
     client = TimetableClient()
-    async with AsyncSessionLocal() as session:
-        groups_json = await client.fetch_groups()
-        groups = groups_json.get("groups", []) if isinstance(groups_json, dict) else groups_json
 
-        if not groups:
-            logger.warning("Список групп пуст.")
-            await client.close()
-            return
+    try:
+        async with AsyncSessionLocal() as session:
+            groups_json = await client.fetch_groups()
+            groups = groups_json.get("groups", []) if isinstance(groups_json, dict) else groups_json
 
-        valid_groups: Set[str] = set()
+            if not groups:
+                logger.warning("Список групп пуст.")
+                return
 
-        # for idx, g in enumerate(groups):
-        #     if limit_groups and idx >= limit_groups:
-        #         break
-        #
-        #     group_name = g.get("groupName")
-        #     faculty_name = g.get("facultyName")
-        #     if not group_name:
-        #         continue
-        #
-        #     try:
-        #         group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
-        #
-        #         tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
-        #         if isinstance(tt_json, dict) and tt_json.get("message"):
-        #             logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
-        #             continue
-        #
-        #         records = extract_lessons_from_timetable_json(group_name, tt_json)
-        #         if not records:
-        #             logger.info("Для группы %s нет расписания", group_name)
-        #             continue
-        #
-        #         inserted = await upsert_lessons_for_group(session, group_obj, records)
-        #         valid_groups.add(group_name)
-        #
-        #         await session.commit()
-        #         logger.info("Обработана группа %s → %d пар", group_name, inserted)
-        #
-        #     except Exception as e:
-        #         await session.rollback()
-        #         logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
-        #         continue
+            valid_groups: Set[str] = set()
 
-        try:
-            await upsert_lessons_for_professors(session)
-            await session.commit()
-        except Exception as e:
-            await session.rollback()
-            logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
+            for idx, g in enumerate(groups):
+                if limit_groups and idx >= limit_groups:
+                    break
 
-        # deleted_groups = 0
-        # q = await session.execute(select(Group))
-        # existing_groups = q.scalars().all()
-        # for grp in existing_groups:
-        #     if grp.group_name not in valid_groups:
-        #         deleted_groups += 1
-        #         await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
-        #         await session.delete(grp)
-        #         logger.info("Удалена группа без расписания: %s", grp.group_name)
-        #
+                group_name = g.get("groupName")
+                faculty_name = g.get("facultyName")
+                if not group_name:
+                    continue
 
-        deleted_profs = 0
-        q = await session.execute(select(Professor))
-        existing_profs = q.scalars().all()
-        for prof in existing_profs:
-            res = await session.execute(select(ProfessorLesson).where(ProfessorLesson.professor_id == prof.id))
-            lessons_for_prof = res.scalars().all()
-            if not lessons_for_prof:
-                deleted_profs += 1
-                await session.delete(prof)
-                logger.info("Удалён преподаватель без пар: %s", prof.name)
+                try:
+                    group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
 
-        await session.commit()
+                    tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
+                    if isinstance(tt_json, dict) and tt_json.get("message"):
+                        logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
+                        continue
+
+                    records = extract_lessons_from_timetable_json(group_name, tt_json)
+                    if not records:
+                        logger.info("Для группы %s нет расписания", group_name)
+                        continue
+
+                    inserted = await upsert_lessons_for_group(session, group_obj, records)
+                    valid_groups.add(group_name)
+
+                    await session.commit()
+                    logger.info("Обработана группа %s → %d пар", group_name, inserted)
+
+                except Exception as e:
+                    await session.rollback()
+                    logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
+                    continue
+
+            # Удаляем неактуальные группы с обработкой исключений
+            deleted_groups = 0
+            try:
+                q = await session.execute(select(Group))
+                existing_groups = q.scalars().all()
+                for grp in existing_groups:
+                    if grp.group_name not in valid_groups:
+                        deleted_groups += 1
+                        await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
+                        await session.delete(grp)
+                        logger.info("Удалена группа без расписания: %s", grp.group_name)
+
+                await session.commit()
+
+            except Exception as e:
+                await session.rollback()
+                logger.error("Ошибка при удалении групп: %s", str(e))
+
+            async with _cache_lock:
+                CACHE_UPDATE_ENABLED = False
+
+            try:
+                await upsert_lessons_for_professors(session)
+                await session.commit()
+
+                deleted_profs = 0
+                try:
+                    q = await session.execute(select(Professor))
+                    existing_profs = q.scalars().all()
+                    for prof in existing_profs:
+                        res = await session.execute(
+                            select(ProfessorLesson).where(ProfessorLesson.professor_id == prof.id)
+                        )
+                        lessons_for_prof = res.scalars().all()
+                        if not lessons_for_prof:
+                            deleted_profs += 1
+                            await session.delete(prof)
+                            logger.info("Удалён преподаватель без пар: %s", prof.name)
+
+                    await session.commit()
+
+                except Exception as e:
+                    await session.rollback()
+                    logger.error("Ошибка при удалении преподавателей: %s", str(e))
+
+            except Exception as e:
+                await session.rollback()
+                logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
+
+            finally:
+                async with _cache_lock:
+                    CACHE_UPDATE_ENABLED = True
+
+    except Exception as e:
+        logger.error("Критическая ошибка в синхронизации: %s", str(e))
+        raise
+
+    finally:
         await client.close()
 
+        await get_cached_professors()
+
     logger.info("✅ Полная синхронизация завершена.")
-    # logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
+    logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
     logger.info("Преподавателей: %d, удалено: %d", len(existing_profs) - deleted_profs, deleted_profs)
 
     await refresh_all_keyboards()
