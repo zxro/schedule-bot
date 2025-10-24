@@ -11,8 +11,10 @@ from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils import week_mark
-from app.utils.schedule.search_professors import get_exact_professor_match, search_professors_fuzzy
+from app.utils.schedule.search_professors import search_professors_fuzzy
 from app.utils.schedule.worker import get_lesson_for_professor
+from app.keyboards.schedule_kb import get_schedule_professors_kb
+
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ async def get_professor_schedule_for_today(professor_name: str):
             - Отфильтрованные занятия на сегодня
             - Текущий тип недели
     """
+
     current_weekday = datetime.now().isoweekday()
     professor, all_lessons = await get_lesson_for_professor(professor_name)
 
@@ -51,83 +54,128 @@ async def get_professor_schedule_for_today(professor_name: str):
     return professor, all_lessons, filtered_lessons, week_filter
 
 
-async def show_professor_schedule_menu(message: Message, professor_name: str, state: FSMContext):
+
+async def format_and_send_schedule(target, professor_name: str, professor, filtered_lessons, week_filter, reply_markup):
     """
-    Показывает меню выбора типа расписания для преподавателя с автоматическим отображением расписания на сегодня.
+    Форматирует и отправляет пользователю расписание преподавателя на текущий день.
+
+    Функция принимает уже отфильтрованные занятия преподавателя, преобразует их
+    в список текстовых сообщений (через `format_schedule_professor`) и отправляет
+    пользователю. Если расписание не помещается в одно сообщение, оно разбивается
+    на несколько с предупреждением в логах.
 
     Параметры:
-        message (Message): Сообщение для ответа
-        professor_name (str): Имя преподавателя
-        state (FSMContext): Контекст состояния
+        target (Message | CallbackQuery.message): Объект для отправки сообщений.
+        professor_name (str): Имя преподавателя (для логирования).
+        professor (Professor): Объект преподавателя из базы данных.
+        filtered_lessons (list): Отфильтрованный список занятий на сегодня.
+        week_filter (str): Маркер текущей недели (`plus`, `minus` или `every`).
+        reply_markup (InlineKeyboardMarkup): Клавиатура, прикрепляемая к последнему сообщению.
+
+    Исключения:
+        Exception: Если возникла ошибка при отправке сообщений пользователю.
     """
 
-    await state.update_data(professor_name=professor_name)
+    header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на сегодня"
+    messages = format_schedule_professor(filtered_lessons, week=week_filter, header_prefix=header_prefix)
 
-    schedule_type_kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="📅 Сегодня", callback_data=f"prof_today:{professor_name}"),
-            ],
-            [
-                InlineKeyboardButton(text="➕ Неделя", callback_data=f"prof_week_plus:{professor_name}"),
-                InlineKeyboardButton(text="➖ Неделя", callback_data=f"prof_week_minus:{professor_name}"),
-            ],
-            [
-                InlineKeyboardButton(text="🗓 Вся неделя", callback_data=f"prof_week_full:{professor_name}"),
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")
-            ]
-        ]
+    if not messages:
+        await target.answer("❌ Не удалось сформировать расписание.")
+        return
+
+    len_messages = len(messages)
+    if len_messages > 1:
+        logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
+
+    for i, msg_text in enumerate(messages):
+        is_last = (i == len_messages - 1)
+        await target.answer(
+            msg_text,
+            reply_markup=reply_markup if is_last else None,
+            parse_mode="MarkdownV2",
+            disable_web_page_preview=True
+        )
+
+
+async def send_no_lessons_message(target, professor_name: str, professor=None, reply_markup=None):
+    """
+    Отправляет сообщение, если у преподавателя нет пар на текущий день.
+
+    Формирует шаблон сообщения с текущим днём недели и маркером недели
+    (например, верхняя/нижняя неделя) и сообщает пользователю, что
+    занятий сегодня нет.
+
+    Параметры:
+        target (Message | CallbackQuery.message): Объект для отправки сообщения.
+        professor_name (str): Имя преподавателя (используется при отсутствии объекта professor).
+        professor (Optional[Professor]): Объект преподавателя, если доступен.
+        reply_markup (Optional[InlineKeyboardMarkup]): Клавиатура, прикрепляемая к сообщению.
+
+    """
+
+    weekday_names = {
+        1: "Понедельник", 2: "Вторник", 3: "Среда",
+        4: "Четверг", 5: "Пятница", 6: "Суббота", 7: "Воскресенье"
+    }
+
+    current_weekday = datetime.now().isoweekday()
+    day_name = weekday_names.get(current_weekday, "сегодня")
+
+    name_to_display = professor.name if professor else professor_name
+
+    text = (
+        f"👨‍🏫 *Расписание преподавателя {escape_md_v2(name_to_display)}*\n\n"
+        f"📅 *{day_name}* {week_mark.WEEK_MARK_STICKER}\n\n"
+        f"Сегодня пар нет\\."
     )
+
+    await target.answer(
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode="MarkdownV2"
+    )
+
+
+async def show_professor_schedule_menu(message: Message, professor_name: str, state: FSMContext):
+    """
+    Показывает пользователю меню выбора типа расписания преподавателя и автоматически отображает расписание на сегодня.
+
+    При первом вызове сохраняет имя преподавателя в состояние FSM,
+    создает inline-клавиатуру и пытается сразу показать расписание на текущий день.
+    Если занятий нет, сообщает пользователю об этом.
+
+    Параметры:
+        message (Message): Объект входящего сообщения от пользователя.
+        professor_name (str): Имя преподавателя, для которого запрашивается расписание.
+        state (FSMContext): Контекст состояний FSM для сохранения данных.
+
+    Исключения:
+        Exception: Если возникла ошибка при получении или отправке расписания.
+    """
+    
+    await state.update_data(professor_name=professor_name)
+    schedule_type_kb = get_schedule_professors_kb(professor_name)
 
     try:
         professor, all_lessons, filtered_lessons, week_filter = await get_professor_schedule_for_today(professor_name)
 
         if professor and filtered_lessons:
-            header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на сегодня"
-            messages = format_schedule_professor(
-                filtered_lessons,
-                week=week_filter,
-                header_prefix=header_prefix
+            await format_and_send_schedule(
+                target=message,
+                professor_name=professor_name,
+                professor=professor,
+                filtered_lessons=filtered_lessons,
+                week_filter=week_filter,
+                reply_markup=schedule_type_kb
             )
+            return
 
-            if messages:
-                len_messages = len(messages)
-                if len_messages > 1:
-                    logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
-
-                for i, msg_text in enumerate(messages):
-                    is_last = (i == len_messages - 1)
-                    await message.answer(
-                        msg_text,
-                        reply_markup=schedule_type_kb if is_last else None,
-                        parse_mode="MarkdownV2",
-                        disable_web_page_preview=True
-                    )
-                return
-
-        weekday_names = {
-            1: "Понедельник", 2: "Вторник", 3: "Среда",
-            4: "Четверг", 5: "Пятница", 6: "Суббота", 7: "Воскресенье"
-        }
-
-        current_weekday = datetime.now().isoweekday()
-        current_day_name = weekday_names.get(current_weekday, "сегодня")
-
-        await message.answer(
-            text=f"👨‍🏫 *Расписание преподавателя {escape_md_v2(professor_name)}*\n\n"
-                 f"📅 *{current_day_name}* {week_mark.WEEK_MARK_STICKER}\n\n"
-                 f"Сегодня пар нет\\.\n\n",
-            reply_markup=schedule_type_kb,
-            parse_mode="MarkdownV2"
-        )
+        await send_no_lessons_message(message, professor_name, professor, schedule_type_kb)
 
     except Exception as e:
         logger.error(f"Ошибка при получении расписания на сегодня для {professor_name}: {e}")
         await message.answer(
-            text=f"👨‍🏫 *Преподаватель: {escape_md_v2(professor_name)}*\n\n"
-                 "Выберите тип расписания:",
+            text=f"👨‍🏫 *Преподаватель: {escape_md_v2(professor_name)}*\n\nВыберите тип расписания:",
             reply_markup=schedule_type_kb,
             parse_mode="MarkdownV2"
         )
@@ -260,16 +308,13 @@ async def waiting_name(message: Message, state: FSMContext):
         )
         return
 
-    # Точное совпадение
-    exact_professor = await get_exact_professor_match(name)
+    exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=80.0)
+
     if exact_professor:
         await show_professor_schedule_menu(message, exact_professor.name, state)
         return
 
-    # Похожие преподаватели
-    matched_professors = await search_professors_fuzzy(name, limit=5)
-
-    if not matched_professors:
+    if not similar_professors:
         await message.answer(
             text=f"❌ Преподаватель `{escape_md_v2(name)}` не найден\\.\n\n"
                  "Проверьте написание и попробуйте снова\\.",
@@ -279,13 +324,13 @@ async def waiting_name(message: Message, state: FSMContext):
         await state.clear()
         return
 
-    if len(matched_professors) == 1:
-        best_match = matched_professors[0]
+    if len(similar_professors) == 1:
+        best_match = similar_professors[0]
         await show_professor_schedule_menu(message, best_match.name, state)
         await state.clear()
         return
 
-    await show_professor_selection_keyboard(message, matched_professors, name)
+    await show_professor_selection_keyboard(message, similar_professors, name)
     await state.clear()
 
 
@@ -298,6 +343,7 @@ async def handle_professor_selection(callback: CallbackQuery, state: FSMContext)
         callback (CallbackQuery): Callback с выбранным преподавателем
         state (FSMContext): Контекст состояния
     """
+
     professor_name = callback.data.split(":")[1]
 
     await callback.message.delete()
@@ -308,26 +354,20 @@ async def handle_professor_selection(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(F.data.startswith("prof_today:"))
 async def handle_professor_today(callback: CallbackQuery):
     """
-    Обработчик показа расписания преподавателя на текущий день.
+    Обрабатывает запрос пользователя на показ расписания преподавателя на текущий день.
 
-    Извлекает фамилию преподавателя из callback data, получает его расписание,
-    фильтрует занятия по текущему дню недели и отображает пользователю.
+    Извлекает имя преподавателя из callback data, получает данные о расписании
+    через функцию `get_professor_schedule_for_today`, фильтрует занятия по текущему дню,
+    форматирует и отправляет их пользователю. Если занятий нет, отображает
+    соответствующее уведомление.
 
     Параметры:
-        callback (CallbackQuery): Callback-запрос, содержащий имя преподавателя в формате "prof_today:Фамилия И.О.".
-
-    Логика:
-        1. Извлекает имя преподавателя и определяет текущий день недели.
-        2. Получает преподавателя и его занятия с помощью `get_lesson_for_professor`.
-        3. Фильтрует занятия по текущему дню и признаку недели (`plus`/`minus`/`every`).
-        4. Формирует одно или несколько сообщений с расписанием.
-        5. Удаляет старое сообщение и отправляет новое (или несколько, если не помещается).
-        6. Обрабатывает ошибки и уведомляет пользователя об их причинах.
+        callback (CallbackQuery): Объект callback-запроса от пользователя.
 
     Исключения:
-        Exception: При ошибке загрузки или форматирования расписания.
+        Exception: Если произошла ошибка при загрузке или форматировании расписания.
     """
-
+    
     professor_name = ""
     try:
         professor_name = callback.data.split(":")[1]
@@ -343,63 +383,27 @@ async def handle_professor_today(callback: CallbackQuery):
             await callback.answer()
             return
 
+        await callback.message.delete()
+        schedule_type_kb = get_schedule_professors_kb(professor_name)
+
         if not filtered_lessons:
-            weekday_names = {
-                1: "Понедельник", 2: "Вторник", 3: "Среда",
-                4: "Четверг", 5: "Пятница", 6: "Суббота", 7: "Воскресенье"
-            }
-
-            current_weekday = datetime.now().isoweekday()
-            new_text = (f"👨‍🏫 *Расписание преподавателя {escape_md_v2(professor.name)}*\n\n"
-                        f"📅 *{weekday_names[current_weekday]}* {week_mark.WEEK_MARK_STICKER}\n\n"
-                        f"Сегодня пар нет\\.")
-
-            try:
-                await callback.message.edit_text(
-                    text=new_text,
-                    reply_markup=callback.message.reply_markup,
-                    parse_mode="MarkdownV2"
-                )
-            except Exception as edit_error:
-                if "message is not modified" in str(edit_error):
-                    # Игнорируем ошибку, если сообщение не изменилось
-                    pass
-                else:
-                    raise edit_error
-
+            await send_no_lessons_message(callback.message, professor_name, professor, schedule_type_kb)
             await callback.answer(f"Сегодня нет пар у {professor.name}")
             return
 
-        header_prefix = f"👨‍🏫 Расписание преподавателя {professor.name} на сегодня"
-        messages = format_schedule_professor(
-            filtered_lessons,
-            week=week_filter,
-            header_prefix=header_prefix
+        await format_and_send_schedule(
+            target=callback.message,
+            professor_name=professor_name,
+            professor=professor,
+            filtered_lessons=filtered_lessons,
+            week_filter=week_filter,
+            reply_markup=schedule_type_kb
         )
 
-        await callback.message.delete()
-
-        if messages:
-            len_messages = len(messages)
-            if len_messages > 1:
-                logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
-
-            for i, msg_text in enumerate(messages):
-                is_last = (i == len_messages - 1)
-                await callback.message.answer(
-                    msg_text,
-                    reply_markup=callback.message.reply_markup if is_last else None,
-                    parse_mode="MarkdownV2",
-                    disable_web_page_preview=True
-                )
-
-            await callback.answer(f"📅 Сегодня {week_mark.WEEK_MARK_STICKER}")
-        else:
-            await callback.message.answer("❌ Не удалось сформировать расписание.")
-            await callback.answer()
+        await callback.answer(f"📅 Сегодня {week_mark.WEEK_MARK_STICKER}")
 
     except Exception as e:
-        logger.error(f"Ошибка при показе расписания на сегодня преподавателя {professor_name}: {e}.")
+        logger.error(f"Ошибка при показе расписания на сегодня преподавателя {professor_name}: {e}")
         await callback.message.edit_text(f"❌ Ошибка при загрузке расписания преподавателя {professor_name}")
         await callback.answer()
 

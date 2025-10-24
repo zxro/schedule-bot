@@ -16,7 +16,7 @@ from app.utils import week_mark
 from app.utils.schedule.worker import get_schedule_for_group
 from app.keyboards.base_kb import abbr_faculty
 import app.keyboards.find_kb as find_kb
-from app.keyboards.schedule_kb import get_choice_week_kb
+from app.keyboards.schedule_kb import get_choice_week_type_kb
 from app.state.states import ShowScheduleStates
 from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule_students
 from app.keyboards.schedule_kb import get_other_schedules_kb
@@ -272,7 +272,7 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
     await state.set_state(ShowScheduleStates.choice_week)
 
     await callback.message.edit_text(f"Выберите тип расписания:\n"
-                                     f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_kb())
+                                     f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_type_kb())
 
 
 @router.callback_query(StateFilter(ShowScheduleStates.choice_week), F.data.startswith("week:"))
