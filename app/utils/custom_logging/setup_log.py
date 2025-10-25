@@ -9,7 +9,7 @@
 import logging
 from aiogram import Bot
 from app.config import settings
-from app.utils.custom_logging.ContextFilter import ContextFilter
+from app.filters.ContextFilter import ContextFilter
 from app.utils.custom_logging.TelegramLogHandler import TelegramLogHandler
 
 def setup_logging(bot: Bot):
