@@ -84,6 +84,7 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
         text="Отправьте 'Да' для подтверждение синхронизации.",
         reply_markup=kb_cancel
     )
+    await callback.answer()
 
 @router.message(StateFilter(SyncStates.confirm_full_sync), IsAdminFilter())
 async def confirm_full_sync(message: Message, state: FSMContext):

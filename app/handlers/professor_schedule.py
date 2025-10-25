@@ -290,6 +290,12 @@ async def waiting_name(message: Message, state: FSMContext):
         message (Message): Сообщение от пользователя.
         state (FSMContext): Контекст FSM, содержащий данные, сохранённые ранее.
     """
+
+    cancel_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")]
+        ])
+
     await safe_delete_message(message)
 
     data = await state.get_data()
@@ -309,13 +315,15 @@ async def waiting_name(message: Message, state: FSMContext):
         return
 
     if not similar_professors:
-        await message.answer(
+        msg = await message.answer(
             text=f"❌ Преподаватель `{escape_md_v2(name)}` не найден\\.\n\n"
                  "Проверьте написание и попробуйте снова\\.",
-            reply_markup=get_other_schedules_kb(),
+            reply_markup=cancel_kb,
             parse_mode="MarkdownV2"
         )
-        await state.clear()
+
+        await state.update_data(message_id_to_delete=msg.message_id)
+        await state.set_state(ProfessorScheduleStates.waiting_name)
         return
 
     if len(similar_professors) == 1:
