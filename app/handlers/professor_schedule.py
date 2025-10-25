@@ -9,7 +9,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from app.database.models import Professor
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
-from app.utils.messages.safe_delete_messages import safe_delete_callback_message
+from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils.schedule.search_professors import search_professors_fuzzy
 from app.utils.schedule.worker import get_lesson_for_professor
@@ -290,6 +290,7 @@ async def waiting_name(message: Message, state: FSMContext):
         message (Message): Сообщение от пользователя.
         state (FSMContext): Контекст FSM, содержащий данные, сохранённые ранее.
     """
+    await safe_delete_message(message)
 
     data = await state.get_data()
     message_id_to_delete = data.get("message_id_to_delete")
