@@ -3,7 +3,7 @@ import logging
 from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import update, select
 
@@ -13,6 +13,7 @@ from app.keyboards.admin_kb import get_admin_kb
 from app.state.states import AddAdminStates
 from app.database.db import AsyncSessionLocal
 from app.utils.admins.admin_list import add_admin_to_list, remove_admin_from_list, get_admin_username
+from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -329,3 +330,21 @@ async def remove_admin_handler(callback: CallbackQuery):
     except Exception as e:
         await callback.answer("❌ Произошла ошибка", show_alert=True)
         logger.error(f"❌ Ошибка в при снятии роли администратора: {e}")
+
+
+@router.callback_query(F.data == "get_logs", IsAdminFilter())
+async def send_buffered_logs(callback: CallbackQuery):
+    """
+    Отправляет текущие хранящиеся логи (из буфера).
+    """
+
+    await callback.message.delete()
+    await callback.answer()
+
+    file_bytes = global_buffer_handler.get_logs_as_file()
+    input_file = BufferedInputFile(file_bytes.getvalue(), filename="buffered_logs.txt")
+
+    await callback.message.answer_document(
+        document=input_file,
+        caption=f"Последние {global_buffer_handler.capacity} логов",
+    )

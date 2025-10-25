@@ -1,12 +1,17 @@
 """
 Реализует пользовательский обработчик логов для Python logging,
 который асинхронно отправляет сообщения в Telegram-чат.
-Встроена защита от спама (rate-limiting) и поддержка длинных сообщений.
+Встроена защита от спама (rate-limiting), поддержка длинных сообщений
+и буфер последних записей для контекста при ошибках.
 
+Функциональность:
 - Асинхронная очередь для логов.
 - Ограничение длины сообщений (4000 символов).
 - Повторная попытка при ошибке отправки.
+- Хранение последних N логов в памяти.
+- При ошибке отправляются: буфер последних логов + сам файл ошибки.
 """
+
 from datetime import datetime
 import logging
 import asyncio
@@ -15,18 +20,23 @@ from io import BytesIO
 from aiogram import Bot
 from asyncio import Queue
 
-from app.bot import bot as botimp
+from app.bot import bot as bot_info_log
 from app.config import settings
 from aiogram.types import BufferedInputFile
+from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
+
 
 class TelegramLogHandler(logging.Handler):
     """
     Асинхронный обработчик логов для отправки сообщений в Telegram.
 
     Особенности:
-    - Работает через очередь asyncio.Queue
-    - Сообщения дробятся на части, если превышают 4000 символов
-    - Между сообщениями выдерживается RATE_LIMIT
+    - Работает через очередь asyncio.Queue.
+    - Сообщения дробятся на части, если превышают 4000 символов.
+    - Между сообщениями выдерживается RATE_LIMIT.
+    - При ошибках (ERROR+) отправляются:
+        • recent_logs.txt — последние логи
+        • error_<timestamp>.txt — сам лог ошибки
 
     Поля:
     MAX_MESSAGE_LENGTH : int
@@ -34,7 +44,7 @@ class TelegramLogHandler(logging.Handler):
     RATE_LIMIT : float
         Минимальная задержка между отправками сообщений (секунды).
     TIME_LIMIT : int
-        Время между повторными отправками лога при ошибке
+        Задержка между повторными попытками при ошибке
     _queue : asyncio.Queue
         Очередь сообщений для отправки.
     _worker_task : asyncio.Task | None
@@ -43,7 +53,7 @@ class TelegramLogHandler(logging.Handler):
 
     MAX_MESSAGE_LENGTH = 4000
     RATE_LIMIT = 1.0
-    TIME_SLEEP = 21
+    TIME_SLEEP = 21  # задержка между повторными попытками при ошибке
 
     _queue: Queue
     _worker_task: asyncio.Task | None = None
@@ -98,6 +108,7 @@ class TelegramLogHandler(logging.Handler):
         while True:
             item = await self._queue.get()
             sent = False
+
             while not sent:
                 try:
                     if isinstance(item, str):
@@ -138,21 +149,31 @@ class TelegramLogHandler(logging.Handler):
         try:
             log_entry = self.format(record)
 
+            # --- ERROR и выше ---
             if record.levelno >= logging.ERROR:
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                filename = f"error_{timestamp}.txt"
 
-                file_bytes = BytesIO()
-                file_bytes.write(log_entry.encode("utf-8"))
-
+                # Отправка буфера последних логов
+                buffer_file = global_buffer_handler.get_logs_as_file(self.formatter)
                 self._queue.put_nowait({
                     "as_file": True,
-                    "file": file_bytes,
-                    "filename": filename,
-                    "caption": f"Ошибка уровня {record.levelname} ({filename})",
+                    "file": buffer_file,
+                    "filename": "recent_logs.txt",
+                    "caption": f"Последние {global_buffer_handler.capacity} логов перед ошибкой",
+                })
+
+                # Отправка лога ошибки
+                error_file = BytesIO()
+                error_file.write(log_entry.encode("utf-8"))
+                self._queue.put_nowait({
+                    "as_file": True,
+                    "file": error_file,
+                    "filename": f"error_{timestamp}.txt",
+                    "caption": f"Ошибка уровня {record.levelname}"
                 })
                 return
 
+            # --- INFO / WARNING ---
             messages = self._split_message(log_entry)
             for idx, chunk in enumerate(messages, 1):
                 if len(messages) > 1:
@@ -189,12 +210,11 @@ async def send_chat_info_log(text: str):
     Используется вручную для редких сообщений (например, уведомлений об операциях).
 
     Аргументы:
-    bot : aiogram.Bot
-        Экземпляр бота.
-    text : str
-        Текст сообщения.
+        text : str
+            Текст сообщения.
     """
+
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
     formatted_text = f"{timestamp} [INFO] {text}"
-    await botimp.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=formatted_text)
+    await bot_info_log.send_message(settings.TELEGRAM_LOG_CHAT_ID, text=formatted_text)
