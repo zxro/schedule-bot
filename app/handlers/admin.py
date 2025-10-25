@@ -151,6 +151,7 @@ async def reading_id(message: Message, state: FSMContext):
         ValueError: Если введённое значение не является числом.
         Exception: Любые другие ошибки работы с БД или Telegram API.
     """
+
     cancel_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_panel")]
@@ -162,7 +163,6 @@ async def reading_id(message: Message, state: FSMContext):
         data = await state.get_data()
         message_id_to_delete = data.get("message_id")
         if message_id_to_delete:
-            await safe_delete_message_by_id(chat_id=message_id_to_delete, message_id=0)
             try:
                 await message.bot.delete_message(chat_id=message.chat.id, message_id=0)
             except Exception as e:
