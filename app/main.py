@@ -41,8 +41,6 @@ async def on_startup():
     logger.info("Бот успешно запущен")
     await send_chat_info_log("Бот успешно запущен")
 
-    logger.error("Тестовая ошибка. Отправка файлом")
-
 async def main():
     """Главная функция запуска бота."""
 
