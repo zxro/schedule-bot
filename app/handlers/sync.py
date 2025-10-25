@@ -81,7 +81,7 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
     )
 
     await callback.message.edit_text(
-        "Отправьте 'Да' для подтверждение синхронизации.",
+        text="Отправьте 'Да' для подтверждение синхронизации.",
         reply_markup=kb_cancel
     )
 
@@ -104,7 +104,7 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением: {e}")
+            logger.warning(f"Не удалось удалить сообщение с подтверждением синхронизации: {e}")
 
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
@@ -140,7 +140,7 @@ async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text(
-            "Выберите факультет для синхронизации:",
+            text="Выберите факультет для синхронизации:",
             reply_markup=sync_kb.faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_faculty)
