@@ -3,7 +3,7 @@ import logging
 from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery
 
-from app.utils.custom_logging.ContextFilter import current_user_id, current_username
+from app.filters.ContextFilter import current_user_id, current_username
 from app.utils.admins.admin_list import is_admin
 
 logger = logging.getLogger(__name__)

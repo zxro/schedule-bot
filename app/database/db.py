@@ -13,11 +13,14 @@ from app.config import settings
 from app.database.init_db import init_db
 
 engine = create_async_engine(
-    settings.DB_TIMETABLE_URL,                 # строка подключения к PostgreSQL
-    echo=False,                                # echo=True = логировать SQL-запросы в консоль
-    future=True,                               # новый API SQLAlchemy 2.0
-    poolclass=StaticPool,                      # одно и то же соединение для всех операций
-    connect_args={"check_same_thread": False}  # для работы в нескольких потоках
+    settings.DB_TIMETABLE_URL,          # URL подключения к SQLite
+    echo=False,                         # echo=True = логировать SQL-запросы в консоль
+    future=True,                        # новый API SQLAlchemy 2.0
+    poolclass=StaticPool,               # одно и то же соединение для всех операций
+    connect_args={                      # для работы в нескольких потоках и установка таймаута
+        "check_same_thread": False,
+        "timeout": 15
+    }
 )
 
 AsyncSessionLocal = async_sessionmaker(

@@ -1,11 +1,56 @@
 """
 Парсер JSON ответа timetable -> объекты, пригодные для записи в БД.
 """
+import re
 from datetime import time
 from typing import List, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def extract_professor_names(professors_text: str) -> list[str]:
+    """
+    Извлекает имена преподавателей из текста, убирая должности в скобках.
+    """
+
+    if not professors_text:
+        return []
+
+    def remove_unbalanced_brackets(text: str):
+        """Удаляет несбалансированные скобки"""
+        result = []
+        stack = []
+
+        for char in text:
+            if char == '(':
+                stack.append(len(result))
+                result.append(char)
+            elif char == ')':
+                if stack:
+                    stack.pop()
+                    result.append(char)
+            else:
+                result.append(char)
+
+        for pos in reversed(stack):
+            del result[pos]
+
+        return ''.join(result)
+
+    # Убираем должности в скобках
+    cleaned_text = re.sub(r'\([^)]*\)', '', professors_text)
+    # Убираем точки у инициалов
+    cleaned_text = re.sub(r'\.', ' ', cleaned_text)
+    # Убираем несбалансированные скобки
+    cleaned_text = remove_unbalanced_brackets(cleaned_text)
+    # Убираем лишние пробелы
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text.strip())
+
+    names = [name.strip() for name in cleaned_text.split(',') if name.strip()]
+
+    return names
+
 
 def parse_lesson_time_data(lesson_time_data: List[Dict[str, str]]) -> Dict[int, Dict[str, time]]:
     """
@@ -43,6 +88,7 @@ def parse_lesson_time_data(lesson_time_data: List[Dict[str, str]]) -> Dict[int, 
             logger.error("Ошибка извлечения времени пары: %s", e)
 
     return lesson_time_map
+
 
 def extract_lessons_from_timetable_json(group_name: str, timetable_json: Dict[str, Any]):
     """

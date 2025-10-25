@@ -3,7 +3,6 @@ import logging
 import math
 from datetime import datetime, timedelta
 
-from app.bot import bot
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)

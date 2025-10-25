@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
 
+
 class Faculty(Base):
     """
     Модель факультета.
@@ -30,6 +31,7 @@ class Faculty(Base):
     __tablename__ = "faculties"
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
+
 
 class Group(Base):
     """
@@ -51,6 +53,7 @@ class Group(Base):
     group_name = Column(String, unique=True, nullable=False, index=True)
     faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True)
     faculty = relationship("Faculty", lazy="joined")
+
 
 class Lesson(Base):
     """
@@ -87,7 +90,7 @@ class Lesson(Base):
     rooms = Column(Text, nullable=True)
     week_mark = Column(String, nullable=True)
     type = Column(String, nullable=True)
-
+    
     __table_args__ = (
         UniqueConstraint(
             'group_id', 'weekday', 'lesson_number', 'subject',
@@ -95,6 +98,7 @@ class Lesson(Base):
             name='uq_lesson_unique'
         ),
     )
+
 
 class User(Base):
     """
@@ -124,4 +128,66 @@ class User(Base):
 
     __table_args__ = (
         UniqueConstraint('id', name='uq_user_id'),
+    )
+
+
+class Professor(Base):
+    """
+    Таблица преподавателя.
+
+    Поля:
+    id : Integer
+        Первичный ключ.
+    name : String
+        Имя и инициалы преподавателя (формат "Фамилия И О").
+    """
+
+    __tablename__ = "professors"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True, index=True)
+
+    __table_args__ = (
+        UniqueConstraint('name', name='uq_professor_name'),
+    )
+
+
+class ProfessorLesson(Base):
+    """
+    Таблица расписания преподавателя.
+
+    Позволяет хранить расписание занятий конкретного преподавателя.
+
+    Поля:
+    id : Integer
+        Первичный ключ.
+    professor_id : Integer
+        Преподаватель.
+    weekday : Integer
+        День недели (1–7).
+    lesson_number : Integer
+        Номер пары.
+    subject : String
+        Предмет.
+    rooms : String | None
+        Аудитория.
+    week_mark : String | None
+        Маркер недели.
+    """
+
+    __tablename__ = "professor_lessons"
+    id = Column(Integer, primary_key=True)
+    professor_id = Column(Integer, ForeignKey("professors.id", ondelete="CASCADE"), nullable=False)
+    weekday = Column(Integer, nullable=True)
+    lesson_number = Column(Integer, nullable=True)
+    subject = Column(Text, nullable=False)
+    rooms = Column(Text, nullable=True)
+    week_mark = Column(String, nullable=True)
+
+    professor = relationship("Professor", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            'professor_id', 'weekday', 'lesson_number', 'subject', 'rooms', 'week_mark',
+            name='uq_professor_lesson_unique'
+        ),
     )

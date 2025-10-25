@@ -14,7 +14,7 @@ async def get_main_menu_kb(user_id: int):
     if user:
         buttons = [
             [KeyboardButton(text="Расписание на сегодня")],
-            [KeyboardButton(text="Другие расписания")],
+            [KeyboardButton(text="Другое расписание")],
             [KeyboardButton(text="Прочие функции")]
         ]
 
