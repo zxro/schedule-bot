@@ -11,7 +11,7 @@ from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLess
 from app.config import settings
 from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
-from app.state.states import DeleteOtherTablesStates
+from app.state.states import DeleteSyncTablesStates
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 
-@router.callback_query(F.data=="cancel_delete_other_tables", IsAdminFilter())
-async def cancel_delete_other_tables(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data=="cancel_clear_sync_tables", IsAdminFilter())
+async def cancel_clear_sync_tables(callback: CallbackQuery, state: FSMContext):
     """
-    Отмена операции удаления данных из остальных таблиц БД (кроме пользователей).
+    Отмена операции удаления данных из таблиц синхронизации БД.
 
     Логика:
         - Состояние FSM очищается.
@@ -31,14 +31,14 @@ async def cancel_delete_other_tables(callback: CallbackQuery, state: FSMContext)
     """
 
     await state.clear()
-    await callback.message.edit_text("❌ Очистка остальных таблиц отменена")
+    await callback.message.edit_text("❌ Очистка таблиц синхронизации отменена")
     await callback.answer()
     await asyncio.sleep(1)
     await callback.message.edit_text(text="Админ панель:", reply_markup=get_admin_kb())
 
 
-@router.callback_query(F.data=="clear_other_tables", IsAdminFilter())
-async def clear_other_tables(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data=="clear_sync_tables", IsAdminFilter())
+async def clear_sync_tables(callback: CallbackQuery, state: FSMContext):
     """
     Инициирует процесс удаления данных из таблиц: Faculty, Group, Lesson, Professor, ProfessorLesson.
 
@@ -49,19 +49,19 @@ async def clear_other_tables(callback: CallbackQuery, state: FSMContext):
         text="⚠️ Эта операция удалит данные из таблиц: факультетов, групп, пар студентов, преподавателей, пар преподавателей.\n"
              "Введите пароль для подтверждения:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_delete_other_tables")]
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_clear_sync_tables")]
         ])
     )
 
     await callback.answer()
-    await state.set_state(DeleteOtherTablesStates.confirm_delete)
+    await state.set_state(DeleteSyncTablesStates.confirm_delete)
     await state.update_data(confirm_message_id=callback.message.message_id)
 
 
-@router.message(StateFilter(DeleteOtherTablesStates.confirm_delete), IsAdminFilter())
-async def confirm_delete_other_tables(message: Message, state: FSMContext):
+@router.message(StateFilter(DeleteSyncTablesStates.confirm_delete), IsAdminFilter())
+async def confirm_clear_sync_tables(message: Message, state: FSMContext):
     """
-    Завершает очистку всех таблиц кроме пользователей после подтверждения паролем.
+    Завершает очистку всех таблиц Faculty, Group, Lesson, Professor, ProfessorLesson после подтверждения паролем.
 
     Логика работы:
         1. Удаляет сообщение с запросом пароля (если есть).
@@ -119,13 +119,13 @@ async def confirm_delete_other_tables(message: Message, state: FSMContext):
                 logger.info(f"Удалено {result.rowcount or 0} записей из таблицы {name}.")
 
             await session.commit()
-            txt = "✅ Все таблицы (кроме пользователей) успешно очищены."
+            txt = "✅ Таблицы Faculty, Group, Lesson, Professor, ProfessorLesson успешно очищены."
             await message.answer(txt)
             logger.info(txt)
             await send_chat_info_log(txt)
 
         except Exception as e:
             await session.rollback()
-            logger.error(f"❌ Ошибка при очистке остальных таблиц: {e}")
+            logger.error(f"❌ Ошибка при очистке таблиц синхронизации: {e}")
 
     await state.clear()

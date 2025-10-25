@@ -11,7 +11,7 @@ from app.database.models import User
 from app.config import settings
 from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
-from app.state.states import DeleteUsersBDStates
+from app.state.states import ClearUsersTableStates
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ async def clear_user_db(callback: CallbackQuery, state: FSMContext):
 
     Функция вызывается при нажатии на кнопку «Очистить базу пользователей».
     Отправляет администратору предупреждение с запросом пароля подтверждения
-    и переводит FSM в состояние ожидания ввода пароля (`DeleteUsersBDStates.confirm_delete`).
+    и переводит FSM в состояние ожидания ввода пароля (`ClearUsersTableStates.confirm_delete`).
 
     Параметры:
         callback (CallbackQuery): Объект колбэка (нажатие inline-кнопки).
@@ -70,11 +70,11 @@ async def clear_user_db(callback: CallbackQuery, state: FSMContext):
         ]))
 
     await callback.answer()
-    await state.set_state(DeleteUsersBDStates.confirm_delete)
+    await state.set_state(ClearUsersTableStates.confirm_delete)
     await state.update_data(confirm_message_id=callback.message.message_id)
 
 
-@router.message(StateFilter(DeleteUsersBDStates.confirm_delete), IsAdminFilter())
+@router.message(StateFilter(ClearUsersTableStates.confirm_delete), IsAdminFilter())
 async def confirm_delete_user(message: Message, state: FSMContext):
     """
     Завершает процедуру удаления пользователей из базы данных после подтверждения паролем.
