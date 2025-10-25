@@ -112,7 +112,7 @@ async def confirm_delete_user(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением: {e}")
+            logger.warning(f"Не удалось удалить сообщение с подтверждением очистки БД: {e}")
 
     password = message.text
     try:
