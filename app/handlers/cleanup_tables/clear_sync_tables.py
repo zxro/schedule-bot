@@ -94,7 +94,7 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
         logger.warning(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
 
     if password != settings.ADMIN_PASSWORD:
-        logger.warning("❌ Попытка очистки остальных таблиц с неверным паролем.")
+        logger.warning("❌ Попытка очистки таблиц синхронизаций с неверным паролем.")
         try:
             msg = await message.answer("❌ Неверный пароль")
             await asyncio.sleep(1.5)
