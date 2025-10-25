@@ -58,7 +58,7 @@ async def safe_delete_message(message: Message) -> bool:
         bool: True, если сообщение успешно удалено; False в противном случае.
     """
 
-    if not message:
+    if message is None:
         logger.debug("safe_delete_message: объект message отсутствует.")
         return False
 
@@ -86,7 +86,7 @@ async def safe_delete_callback_message(callback: CallbackQuery) -> bool:
         bool: True, если сообщение успешно удалено; False в противном случае.
     """
 
-    if not callback or not callback.message:
+    if callback is None or callback.message is None:
         logger.debug("safe_delete_message_by_id: некорректные параметры для удаления.")
         return False
 
@@ -120,7 +120,7 @@ async def safe_delete_message_by_id(chat_id: int, message_id: int) -> bool:
         bool: True, если сообщение успешно удалено; False в противном случае.
     """
 
-    if not bot or not chat_id or not message_id:
+    if bot is None or chat_id is None or message_id is None:
         logger.debug("safe_delete_message_by_id: некорректные параметры для удаления.")
         return False
 
