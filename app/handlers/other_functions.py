@@ -1,9 +1,11 @@
 from aiogram.types import Message, CallbackQuery
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 import app.keyboards.registration_kb as registration_kb
 from app.state.states import RegistrationStates
+from app.utils.messages.safe_delete_messages import safe_delete_message
 
 router = Router()
 
@@ -11,7 +13,7 @@ router = Router()
 @router.message(F.text == "Прочие функции")
 async def other_functions(message: Message):
     """Меню прочих функций"""
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    await safe_delete_message(message)
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
