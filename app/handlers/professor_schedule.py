@@ -9,6 +9,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from app.database.models import Professor
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
+from app.utils.messages.safe_delete_messages import safe_delete_callback_message
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils.schedule.search_professors import search_professors_fuzzy
 from app.utils.schedule.worker import get_lesson_for_professor
@@ -52,7 +53,6 @@ async def get_professor_schedule_for_today(professor_name: str):
     ]
 
     return professor, all_lessons, filtered_lessons, week_filter
-
 
 
 async def format_and_send_schedule(target, professor_name: str, professor, filtered_lessons, week_filter, reply_markup):
@@ -270,6 +270,7 @@ async def professor_schedule(callback: CallbackQuery, state: FSMContext):
         reply_markup=cancel_kb,
         parse_mode="MarkdownV2"
     )
+
     await callback.answer()
     await state.set_state(ProfessorScheduleStates.waiting_name)
     await state.update_data(message_id_to_delete=callback.message.message_id)
@@ -296,17 +297,9 @@ async def waiting_name(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
         except Exception as e:
-            logger.warning(f"⚠️ Не удалось удалить сообщение: {e}")
+            logger.warning(f"⚠️ Не удалось удалить сообщение c именем преподавателя: {e}")
 
     name = message.text.strip()
-
-    if len(name) < 2:
-        await message.answer(
-            text="❌ Слишком короткий запрос\\. Введите фамилию и инициалы преподавателя\\.",
-            reply_markup=get_other_schedules_kb(),
-            parse_mode="MarkdownV2"
-        )
-        return
 
     exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=80.0)
 
@@ -346,9 +339,8 @@ async def handle_professor_selection(callback: CallbackQuery, state: FSMContext)
 
     professor_name = callback.data.split(":")[1]
 
-    await callback.message.delete()
+    await safe_delete_callback_message(callback)
     await show_professor_schedule_menu(callback.message, professor_name, state)
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("prof_today:"))
