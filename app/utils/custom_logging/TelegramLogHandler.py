@@ -10,11 +10,14 @@
 from datetime import datetime
 import logging
 import asyncio
+from io import BytesIO
+
 from aiogram import Bot
 from asyncio import Queue
 
 from app.bot import bot as botimp
 from app.config import settings
+from aiogram.types import BufferedInputFile
 
 class TelegramLogHandler(logging.Handler):
     """
@@ -30,6 +33,8 @@ class TelegramLogHandler(logging.Handler):
         Максимальная длина одного сообщения в Telegram.
     RATE_LIMIT : float
         Минимальная задержка между отправками сообщений (секунды).
+    TIME_LIMIT : int
+        Время между повторными отправками лога при ошибке
     _queue : asyncio.Queue
         Очередь сообщений для отправки.
     _worker_task : asyncio.Task | None
@@ -38,6 +43,7 @@ class TelegramLogHandler(logging.Handler):
 
     MAX_MESSAGE_LENGTH = 4000
     RATE_LIMIT = 1.0
+    TIME_SLEEP = 21
 
     _queue: Queue
     _worker_task: asyncio.Task | None = None
@@ -86,21 +92,39 @@ class TelegramLogHandler(logging.Handler):
         Особенности реализации:
             - Повторная попытка при любом исключении.
             - Фиксированная пауза при ошибке отправки (21 сек).
+            - Ошибки типа error и выше отправляются в файлом
         """
 
         while True:
-            message = await self._queue.get()
+            item = await self._queue.get()
             sent = False
             while not sent:
                 try:
-                    await self.bot.send_message(self.chat_id, message)
+                    if isinstance(item, str):
+                        await self.bot.send_message(self.chat_id, item)
+
+                    elif isinstance(item, dict) and item.get("as_file"):
+                        file_bytes: BytesIO = item["file"]
+                        caption = item.get("caption", "Ошибка")
+                        filename = item.get("filename", "error_log.txt")
+
+                        file_bytes.seek(0)
+                        input_file = BufferedInputFile(file_bytes.getvalue(), filename=filename)
+
+                        await self.bot.send_document(
+                            chat_id=self.chat_id,
+                            document=input_file,
+                            caption=caption,
+                            disable_notification=False,
+                        )
+
                     sent = True
+
                 except Exception as e:
                     logging.warning(
-                        f"Не удалось отправить логи в Telegram, повторная попытка через 21 секунду.\n"
-                        f"Текст: {message}.\nОшибка: {e}",
+                        f"Не удалось отправить лог в Telegram, повторная попытка через {self.TIME_SLEEP} секунду.\nОшибка: {e}",
                     )
-                    await asyncio.sleep(21)
+                    await asyncio.sleep(self.TIME_SLEEP)
 
             await asyncio.sleep(self.RATE_LIMIT)
             self._queue.task_done()
@@ -108,16 +132,33 @@ class TelegramLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord):
         """
         Форматирует запись лога и помещает её в очередь на отправку.
-        Если сообщение слишком длинное -> разбивается на части.
+        Если уровень — ERROR или CRITICAL, лог сохраняется в файл и отправляется как документ.
         """
 
         try:
             log_entry = self.format(record)
+
+            if record.levelno >= logging.ERROR:
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                filename = f"error_{timestamp}.txt"
+
+                file_bytes = BytesIO()
+                file_bytes.write(log_entry.encode("utf-8"))
+
+                self._queue.put_nowait({
+                    "as_file": True,
+                    "file": file_bytes,
+                    "filename": filename,
+                    "caption": f"Ошибка уровня {record.levelname} ({filename})",
+                })
+                return
+
             messages = self._split_message(log_entry)
             for idx, chunk in enumerate(messages, 1):
                 if len(messages) > 1:
                     chunk = f"[{idx}/{len(messages)}] {chunk}"
                 self._queue.put_nowait(chunk)
+
         except Exception:
             self.handleError(record)
 
