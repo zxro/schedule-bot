@@ -9,7 +9,7 @@ from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.custom_logging.setup_log import setup_logging
 from app.database.db import checking_db
 from app.handlers.init_handlers import register_handlers
-from app.utils.week_mark import init_week_mark, update_week_mark
+from app.utils.week_mark.week_mark import init_week_mark, update_week_mark
 from app.middlewares.UserContextMiddleware import UserContextMiddleware
 
 logger = logging.getLogger(__name__)
