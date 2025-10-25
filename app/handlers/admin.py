@@ -14,6 +14,8 @@ from app.state.states import AddAdminStates
 from app.database.db import AsyncSessionLocal
 from app.utils.admins.admin_list import add_admin_to_list, remove_admin_from_list, get_admin_username
 from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
+from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message
+import app.utils.admins.admin_list as admin_list
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -53,8 +55,7 @@ async def exit_admin_panel(callback: CallbackQuery, state: FSMContext):
         state (FSMContext): Контекст конечного автомата состояний FSM.
     """
 
-    await callback.message.delete()
-    await callback.answer()
+    await safe_delete_callback_message(callback)
     await state.clear()
 
 
@@ -71,6 +72,8 @@ async def admin_panel_message(message: Message, state: FSMContext):
         message (Message): Объект сообщения от пользователя.
         state (FSMContext): Контекст конечного автомата состояний FSM.
     """
+
+    await safe_delete_message(message)
 
     await message.answer(text="Админ панель:", reply_markup=get_admin_kb())
     await state.clear()
@@ -117,7 +120,7 @@ async def add_admin(callback: CallbackQuery, state: FSMContext):
         inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_panel")]
         ])
-    await callback.message.edit_text("Введите ID пользователя для назначения администратором.\n"
+    await callback.message.edit_text(text="Введите ID пользователя для назначения администратором.\n"
                                      "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
                                      reply_markup=kb)
     await state.set_state(AddAdminStates.waiting_id)
@@ -147,6 +150,12 @@ async def reading_id(message: Message, state: FSMContext):
         ValueError: Если введённое значение не является числом.
         Exception: Любые другие ошибки работы с БД или Telegram API.
     """
+    cancel_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_panel")]
+        ])
+
+    await safe_delete_message(message)
 
     try:
         data = await state.get_data()
@@ -157,7 +166,19 @@ async def reading_id(message: Message, state: FSMContext):
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
 
-        user_id = int(message.text)
+        try:
+            user_id = int(message.text)
+        except ValueError:
+            await message.answer("❌ Неверный формат ID. Введите числовой ID.")
+            logger.info(f"⚠️ Введён некорректный ID: '{message.text}'")
+
+            await asyncio.sleep(1)
+            await message.answer(text="Повторно введите ID пользователя для назначения администратором.\n"
+                                 "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
+                                 reply_markup=cancel_kb)
+            await state.set_state(AddAdminStates.waiting_id)
+            await state.update_data(message_id=message.message_id)
+            return
 
         if user_id == message.from_user.id:
             await message.answer("❌ Вы не можете назначить администратором самого себя.")
@@ -169,7 +190,13 @@ async def reading_id(message: Message, state: FSMContext):
             if not user:
                 await message.answer(f"❌ Пользователь с ID {user_id} не найден.")
                 logger.info(f"⚠️ Попытка назначить администратором несуществующего пользователя {user_id}.")
-                await state.clear()
+
+                await asyncio.sleep(1)
+                await message.answer(text="Повторно введите ID пользователя для назначения администратором.\n"
+                                          "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
+                                     reply_markup=cancel_kb)
+                await state.set_state(AddAdminStates.waiting_id)
+                await state.update_data(message_id=message.message_id)
                 return
 
             if user.role == 1:
@@ -191,13 +218,12 @@ async def reading_id(message: Message, state: FSMContext):
 
             await add_admin_to_list(user_id)
 
-    except ValueError as e:
-        await message.answer("❌ Неверный формат ID. Введите числовой ID.")
-        logger.error(f"❌ Ошибка при преобразовании ID '{message.text}' в handler reading_id: {e}")
-
     except Exception as e:
-        await message.answer("❌ Произошла ошибка при обработке ID.")
-        logger.error(f"❌ Ошибка в reading_id для текста '{message.text}': {e}")
+        await message.answer("❌ Ошибка при назначении администратора.")
+        logger.error(
+            f"❌ Ошибка при назначении администратора в reading_id. "
+            f"Введённый ID: '{message.text}': {e}"
+        )
 
     finally:
         await state.clear()
@@ -209,68 +235,65 @@ async def list_admins(callback: CallbackQuery):
     Отображает список всех администраторов системы.
 
     Действия:
-    1. Получает всех пользователей с ролью администратора из базы данных.
+    1. Получает список администраторов из памяти (LIST_ADMINS).
     2. Формирует список в формате MarkdownV2 с нумерацией, ID, ссылками и username.
     3. Подсвечивает текущего администратора пометкой "⭐ Это вы".
     4. Добавляет кнопки для удаления других администраторов.
-    5. Добавляет справку с ссылками, если tg:// ссылка не работает.
+    5. Добавляет справку с ссылками, если @user_name ссылка не работает.
 
     Параметры:
         callback (CallbackQuery): Объект callback-запроса.
     """
 
-    async with AsyncSessionLocal() as session:
-        stmt = select(User).where(User.role == 1)
-        result = await session.execute(stmt)
-        admins = result.scalars().all()
+    admins = admin_list.LIST_ADMINS
 
-        if not admins:
-            await callback.message.edit_text(
-                text="📋 Список администраторов пуст.",
-                reply_markup=InlineKeyboardBuilder()
-                .button(text="◀️ Назад", callback_data="admin_panel")
-                .as_markup()
-            )
-            await callback.answer()
-            return
-
-        admin_list = "📋 *Список администраторов:*\n\n"
-
-        for i, admin in enumerate(admins, 1):
-            escaped_id = escape_md_v2(str(admin.id))
-
-            username = get_admin_username(admin.id)
-            username_text = f" — {escape_md_v2(username)}" if username is not None else ""
-
-            current_user_marker = " ⭐ Это вы" if admin.id == callback.from_user.id else ""
-
-            admin_list += (f"{i}\\. ID `{escaped_id}`{username_text}"
-                           f"\n     {current_user_marker}\n")
-
-        admin_list += (
-            "\nПри не рабочей или отсутствующей ссылке воспользуйтесь:\n"
-            "app\\: tg\\:\\/\\/user\\?id\\=ID\n"
-            "web\\: https\\:\\/\\/web\\.telegram\\.org\\/k\\/\\#ID\n"
-        )
-
-        builder = InlineKeyboardBuilder()
-        for admin in admins:
-            if admin.id != callback.from_user.id:
-                builder.button(
-                    text=f"🗑️ Удалить {admin.id}",
-                    callback_data=f"remove_admin_{admin.id}"
-                )
-
-        builder.button(text="◀️ Назад", callback_data="admin_panel")
-        builder.adjust(1)
-
+    if not admins:
         await callback.message.edit_text(
-            admin_list,
-            parse_mode="MarkdownV2",
-            reply_markup=builder.as_markup(),
-            disable_web_page_preview=True
+            text="📋 Список администраторов пуст.",
+            reply_markup=InlineKeyboardBuilder()
+            .button(text="◀️ Назад", callback_data="admin_panel")
+            .as_markup()
         )
         await callback.answer()
+        return
+
+    text = "📋 *Список администраторов:*\n\n"
+
+    for i, admin in enumerate(admins, 1):
+        escaped_id = escape_md_v2(str(admin.id))
+
+        username = get_admin_username(admin.id)
+        username_text = f" — {escape_md_v2(username)}" if username is not None else ""
+
+        current_user_marker = " ⭐ Это вы" if admin.id == callback.from_user.id else ""
+
+        text += (f"{i}\\. ID `{escaped_id}`{username_text}"
+                 f"\n     {current_user_marker}\n")
+
+    text += (
+        "\nПри не рабочей или отсутствующей ссылке воспользуйтесь:\n"
+        "app\\: tg\\:\\/\\/user\\?id\\=ID\n"
+        "web\\: https\\:\\/\\/web\\.telegram\\.org\\/k\\/\\#ID\n"
+    )
+
+    builder = InlineKeyboardBuilder()
+    for admin in admins:
+        if admin.id != callback.from_user.id:
+            builder.button(
+                text=f"🗑️ Удалить {admin.id}",
+                callback_data=f"remove_admin_{admin.id}"
+            )
+
+    builder.button(text="◀️ Назад", callback_data="admin_panel")
+    builder.adjust(1)
+
+    await callback.message.edit_text(
+        text,
+        parse_mode="MarkdownV2",
+        reply_markup=builder.as_markup(),
+        disable_web_page_preview=True
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("remove_admin_"), IsAdminFilter())
@@ -325,10 +348,10 @@ async def remove_admin_handler(callback: CallbackQuery):
         await callback.message.edit_text(text="Админ панель", reply_markup=get_admin_kb())
 
     except (ValueError, IndexError) as e:
-        await callback.answer("❌ Ошибка при обработке запроса", show_alert=True)
+        await callback.answer(text="❌ Ошибка при обработке запроса", show_alert=True)
         logger.error(f"❌ Ошибка в при снятии роли администратора: {e}")
     except Exception as e:
-        await callback.answer("❌ Произошла ошибка", show_alert=True)
+        await callback.answer(text="❌ Произошла ошибка", show_alert=True)
         logger.error(f"❌ Ошибка в при снятии роли администратора: {e}")
 
 
@@ -338,8 +361,7 @@ async def send_buffered_logs(callback: CallbackQuery):
     Отправляет текущие хранящиеся логи (из буфера).
     """
 
-    await callback.message.delete()
-    await callback.answer()
+    await safe_delete_callback_message(callback)
 
     file_bytes = global_buffer_handler.get_logs_as_file()
     input_file = BufferedInputFile(file_bytes.getvalue(), filename="buffered_logs.txt")
