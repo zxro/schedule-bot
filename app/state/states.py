@@ -24,3 +24,6 @@ class DeleteUsersBDStates(StatesGroup):
 class ProfessorScheduleStates(StatesGroup):
     waiting_name = State()
     waiting_type_week = State()
+
+class DeleteOtherTablesStates(StatesGroup):
+    confirm_delete = State()

@@ -6,7 +6,8 @@ from app.handlers.registration import router as registration_router
 from app.handlers.my_schedule import router as my_schedule_router
 from app.handlers.admin import router as admin_router
 from app.handlers.other_functions import router as other_functions_router
-from app.handlers.clear_users import router as clear_users_router
+from app.handlers.cleanup_tables.clear_users import router as clear_users_router
+from app.handlers.cleanup_tables.clear_other_tables import router as clean_other_tables_router
 from app.handlers.professor_schedule import router as professor_schedule_router
 
 def register_handlers(dp: Dispatcher):
@@ -19,4 +20,5 @@ def register_handlers(dp: Dispatcher):
     dp.include_router(admin_router)
     dp.include_router(other_functions_router)
     dp.include_router(clear_users_router)
+    dp.include_router(clean_other_tables_router)
     dp.include_router(professor_schedule_router)
