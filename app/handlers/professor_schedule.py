@@ -10,10 +10,10 @@ from app.database.models import Professor
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
-from app.utils import week_mark
 from app.utils.schedule.search_professors import search_professors_fuzzy
 from app.utils.schedule.worker import get_lesson_for_professor
 from app.keyboards.schedule_kb import get_schedule_professors_kb
+import app.utils.week_mark.week_mark as week_mark
 
 
 router = Router()

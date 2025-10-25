@@ -12,7 +12,8 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.utils import week_mark
+import app.utils.week_mark.week_mark as week_mark
+from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
 from app.utils.schedule.worker import get_schedule_for_group
 from app.keyboards.base_kb import abbr_faculty
 import app.keyboards.find_kb as find_kb
@@ -52,13 +53,13 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data=="exit_other_schedules")
 async def exit_other_schedules(callback: CallbackQuery):
     """Отмена выбора 'другого' расписания"""
-    await callback.message.delete()
-    await callback.answer()
+    await safe_delete_callback_message(callback)
 
 
 @router.message((F.text == "Другое расписание") | (F.text == "Расписания"))
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
+    await safe_delete_message(message)
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
 
 
@@ -83,6 +84,8 @@ async def get_schedule_today(message: Message):
     Отображает расписание на сегодняшний день для пользователя,
     исходя из его faculty_id и group_id в таблице user.
     """
+
+    await safe_delete_message(message)
 
     user_id = message.from_user.id
     today = datetime.date.today()
