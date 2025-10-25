@@ -14,7 +14,8 @@ from app.state.states import AddAdminStates
 from app.database.db import AsyncSessionLocal
 from app.utils.admins.admin_list import add_admin_to_list, remove_admin_from_list, get_admin_username
 from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
-from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message
+from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message, \
+    safe_delete_message_by_id
 import app.utils.admins.admin_list as admin_list
 
 router = Router()
@@ -161,8 +162,9 @@ async def reading_id(message: Message, state: FSMContext):
         data = await state.get_data()
         message_id_to_delete = data.get("message_id")
         if message_id_to_delete:
+            await safe_delete_message_by_id(chat_id=message_id_to_delete, message_id=0)
             try:
-                await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
+                await message.bot.delete_message(chat_id=message.chat.id, message_id=0)
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
 
@@ -259,13 +261,13 @@ async def list_admins(callback: CallbackQuery):
 
     text = "📋 *Список администраторов:*\n\n"
 
-    for i, admin in enumerate(admins, 1):
-        escaped_id = escape_md_v2(str(admin.id))
+    for i, (admin_id, username) in enumerate(admins.items(), 1):
+        escaped_id = escape_md_v2(str(admin_id))
 
-        username = get_admin_username(admin.id)
+        username = get_admin_username(admin_id)
         username_text = f" — {escape_md_v2(username)}" if username is not None else ""
 
-        current_user_marker = " ⭐ Это вы" if admin.id == callback.from_user.id else ""
+        current_user_marker = " ⭐ Это вы" if admin_id == callback.from_user.id else ""
 
         text += (f"{i}\\. ID `{escaped_id}`{username_text}"
                  f"\n     {current_user_marker}\n")
@@ -277,11 +279,11 @@ async def list_admins(callback: CallbackQuery):
     )
 
     builder = InlineKeyboardBuilder()
-    for admin in admins:
-        if admin.id != callback.from_user.id:
+    for admin_id, username in admins.items():
+        if admin_id != callback.from_user.id:
             builder.button(
-                text=f"🗑️ Удалить {admin.id}",
-                callback_data=f"remove_admin_{admin.id}"
+                text=f"🗑️ Удалить {admin_id}",
+                callback_data=f"remove_admin_{admin_id}"
             )
 
     builder.button(text="◀️ Назад", callback_data="admin_panel")
