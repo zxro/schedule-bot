@@ -1,6 +1,6 @@
 from aiogram import BaseMiddleware
 from typing import Callable, Dict, Any, Awaitable
-from app.utils.custom_logging.ContextFilter import current_user_id, current_username
+from app.filters.ContextFilter import current_user_id, current_username
 
 
 class UserContextMiddleware(BaseMiddleware):

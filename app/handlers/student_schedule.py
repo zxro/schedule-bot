@@ -12,13 +12,14 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from app.utils import week_mark
+import app.utils.week_mark.week_mark as week_mark
+from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
 from app.utils.schedule.worker import get_schedule_for_group
 from app.keyboards.base_kb import abbr_faculty
 import app.keyboards.find_kb as find_kb
-from app.keyboards.schedule_kb import get_choice_week_kb
-from app.state.states import ShowSheduleStates
-from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule
+from app.keyboards.schedule_kb import get_choice_week_type_kb
+from app.state.states import ShowScheduleStates
+from app.utils.schedule.schedule_formatter import escape_md_v2, format_schedule_students
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.database.db import AsyncSessionLocal
 from app.database.models import User, Lesson
@@ -27,6 +28,7 @@ from app.database.models import User, Lesson
 router = Router()
 logger = logging.getLogger(__name__)
 
+
 @router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_find"))
 async def cancel_find(callback: CallbackQuery, state: FSMContext):
     """
@@ -34,26 +36,30 @@ async def cancel_find(callback: CallbackQuery, state: FSMContext):
 
     Действия:
     - Очищает состояние.
-    - Сообщает пользователю об отмене.
+    - Возвращает клавиатуру с расписаниями.
     """
 
     await state.clear()
     try:
         await callback.answer()
-        await callback.message.delete()
+        await callback.message.edit_text(
+            text="Выберите расписание которое хотите посмотреть:",
+            reply_markup=get_other_schedules_kb()
+        )
     except Exception as e:
-        logger.error(f"Не удалось удалить сообщение: {e}")
+        logger.error(f"Не удалось изменить сообщение: {e}")
+
 
 @router.callback_query(F.data=="exit_other_schedules")
 async def exit_other_schedules(callback: CallbackQuery):
     """Отмена выбора 'другого' расписания"""
-    await callback.message.delete()
-    await callback.answer()
+    await safe_delete_callback_message(callback)
 
 
-@router.message((F.text == "Другие расписания") | (F.text == "Расписания"))
+@router.message((F.text == "Другое расписание") | (F.text == "Расписания"))
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
+    await safe_delete_message(message)
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
 
 
@@ -68,7 +74,7 @@ async def get_schedule_start(callback: CallbackQuery, state: FSMContext):
     """
 
     await callback.message.edit_text("Выберите факультет:", reply_markup=find_kb.faculty_keyboard_find)
-    await state.set_state(ShowSheduleStates.choice_faculty)
+    await state.set_state(ShowScheduleStates.choice_faculty)
     await callback.answer()
 
 
@@ -78,6 +84,8 @@ async def get_schedule_today(message: Message):
     Отображает расписание на сегодняшний день для пользователя,
     исходя из его faculty_id и group_id в таблице user.
     """
+
+    await safe_delete_message(message)
 
     user_id = message.from_user.id
     today = datetime.date.today()
@@ -113,7 +121,7 @@ async def get_schedule_today(message: Message):
                 await message.answer("Сегодня пар нет 🎉")
                 return
 
-            text_blocks = format_schedule(
+            text_blocks = format_schedule_students(
                 lessons=lessons_today,
                 week=current_week_mark,
                 header_prefix=f"📅 Расписание на сегодня ({today.strftime('%d.%m.%Y')})"
@@ -122,16 +130,9 @@ async def get_schedule_today(message: Message):
             for text in text_blocks:
                 await message.answer(text, parse_mode="MarkdownV2", disable_web_page_preview=True)
 
-
     except Exception as e:
         logger.error(f"⚠️ Ошибка при выводе расписания на сегодня: {e}")
         await message.answer("⚠️ Ошибка при получении расписания.")
-
-
-@router.callback_query(F.data=="professor_schedule")
-async def professor_schedule(callback: CallbackQuery):
-    await callback.message.edit_text("Этот функционал ещё не доступен 😢")
-    await callback.answer()
 
 
 @router.callback_query(F.data == "weekly_schedule")
@@ -169,7 +170,7 @@ async def weekly_schedule(callback: CallbackQuery):
                 await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
                 return
 
-            messages = format_schedule(
+            messages = format_schedule_students(
                 lessons,
                 week=current_week,
                 header_prefix=f"📅 Расписание группы {user.group.group_name} на текущую неделю"
@@ -222,7 +223,7 @@ async def next_week_schedule(callback: CallbackQuery):
                 await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
                 return
 
-            messages = format_schedule(
+            messages = format_schedule_students(
                 lessons,
                 week=next_week,
                 header_prefix=f"📅 Расписание группы {user.group.group_name} на следующую неделю"
@@ -239,7 +240,7 @@ async def next_week_schedule(callback: CallbackQuery):
         await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
 
 
-@router.callback_query(StateFilter(ShowSheduleStates.choice_faculty), F.data.startswith("faculty:"))
+@router.callback_query(StateFilter(ShowScheduleStates.choice_faculty), F.data.startswith("faculty:"))
 async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
     """
     Обработка выбора факультета.
@@ -256,9 +257,10 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text("⚠️ Для этого факультета нет групп.")
         return
     await callback.message.edit_text(f"Выберите группу факультета {faculty_name}:", reply_markup=groups_kb)
-    await state.set_state(ShowSheduleStates.choice_group)
+    await state.set_state(ShowScheduleStates.choice_group)
 
-@router.callback_query(StateFilter(ShowSheduleStates.choice_group), F.data.startswith("group:"))
+
+@router.callback_query(StateFilter(ShowScheduleStates.choice_group), F.data.startswith("group:"))
 async def choice_type_week(callback: CallbackQuery, state: FSMContext):
     """
     Обработка выбора группы.
@@ -270,13 +272,13 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
 
     group_name = callback.data.split(":")[1]
     await state.update_data(group_name=group_name)
-    await state.set_state(ShowSheduleStates.choice_week)
+    await state.set_state(ShowScheduleStates.choice_week)
 
     await callback.message.edit_text(f"Выберите тип расписания:\n"
-                                     f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_kb())
+                                     f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_type_kb())
 
 
-@router.callback_query(StateFilter(ShowSheduleStates.choice_week), F.data.startswith("week:"))
+@router.callback_query(StateFilter(ShowScheduleStates.choice_week), F.data.startswith("week:"))
 async def show_schedule(callback: CallbackQuery, state: FSMContext):
     """
     Показывает расписание для выбранной группы и типа недели
@@ -293,10 +295,20 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(f"Расписание для {group_name} пустое.")
             return
 
-        messages = format_schedule(lessons=lessons, week=week, header_prefix=f"📅 Расписание для {group_name}")
+        if week == "full":
+            header_prefix = f"📅 Полное расписание для {group_name}"
+        else:
+            header_prefix = f"📅 Расписание для {group_name} на неделю"
+        messages = format_schedule_students(
+            lessons=lessons,
+            week=week,
+            header_prefix=header_prefix
+        )
 
         if not messages:
-            await callback.message.edit_text(f"На выбранную неделю ({week}) расписание для {group_name} пустое.")
+            await callback.message.edit_text(
+                f"На выбранную неделю ({week_mark.WEEK_MARK_STICKER}) расписание для {group_name} пустое."
+            )
             return
 
         await callback.message.edit_text(messages[0], parse_mode="MarkdownV2", disable_web_page_preview=True)

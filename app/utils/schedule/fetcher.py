@@ -45,6 +45,12 @@ class TimetableClient:
         self.delay = delay if delay is not None else settings.REQUEST_DELAY
         self.client = httpx.AsyncClient(timeout=20.0, headers={"Accept": "application/json", "User-Agent": "tversu-schedule"})
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
     async def close(self):
         """
         Закрывает асинхронный HTTP-клиент.
@@ -97,7 +103,8 @@ class TimetableClient:
                         return {"status": status, "message": "Not found"}
                 if status == 429:
                     wait = backoff ** attempt
-                    logger.warning("Ошибка сервера %s; повторная попытка через %.1fs (попытка %d/%d)", wait)
+                    logger.warning("Rate limit (429); повторная попытка через %.1fs (попытка %d/%d)",
+                                   wait, attempt, max_retries)
                     await asyncio.sleep(wait)
                     last_exc = e
                     continue
@@ -125,6 +132,7 @@ class TimetableClient:
         """
 
         url = f"{self.base}/groups"
+        logger.debug(f"Запрос списка групп: {url}")
         return await self.request_with_retry(url)
 
     async def fetch_timetable_for_group(self, group_name: str, type_idx: int = 0):
@@ -141,4 +149,5 @@ class TimetableClient:
 
         q = quote_plus(group_name, safe='')
         url = f"{self.base}/timetable?group_name={q}&type={type_idx}"
+        logger.debug(f"Запрос расписания для группы: {group_name}")
         return await self.request_with_retry(url)

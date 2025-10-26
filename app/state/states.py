@@ -6,7 +6,7 @@ class SyncStates(StatesGroup):
     sync_group_faculty = State()  # для выбора факультета при синхронизации группы
     sync_group_select = State()   # для выбора конкретной группы
 
-class ShowSheduleStates(StatesGroup):
+class ShowScheduleStates(StatesGroup):
     choice_week = State()
     choice_group = State()
     choice_faculty = State()
@@ -14,3 +14,16 @@ class ShowSheduleStates(StatesGroup):
 class RegistrationStates(StatesGroup):
     choice_faculty = State()
     choice_group = State()
+
+class AddAdminStates(StatesGroup):
+    waiting_id = State()
+
+class ClearUsersTableStates(StatesGroup):
+    confirm_delete = State()
+
+class ProfessorScheduleStates(StatesGroup):
+    waiting_name = State()
+    waiting_type_week = State()
+
+class DeleteSyncTablesStates(StatesGroup):
+    confirm_delete = State()

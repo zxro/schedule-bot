@@ -17,7 +17,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 
-from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
+from app.filters.is_admin import IsAdminFilter
+from app.keyboards.admin_kb import get_admin_kb
 from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.base_kb import abbr_faculty
 from app.keyboards.sync_kb import get_type_sync_kb, refresh_sync_keyboards
@@ -28,7 +29,7 @@ from app.state.states import SyncStates
 router = Router()
 logger = logging.getLogger(__name__)
 
-@router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_sync"))
+@router.callback_query(F.data.startswith("cancel_"), F.data.endswith("_sync"), IsAdminFilter())
 async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     """
     Обработка отмены синхронизации.
@@ -39,14 +40,18 @@ async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     - Логирует событие.
     """
 
-    cancel_type = callback.data.replace("cancel_", "")
     await state.clear()
-    await callback.message.edit_text(f"❌ Синхронизация отменена.")
-    logger.info(f"Синхронизация ({cancel_type}) отменена")
-    await asyncio.sleep(1)
-    await callback.message.delete()
+    await callback.answer()
 
-@router.callback_query(F.data=="sync_schedule")
+    await callback.message.edit_text(f"❌ Синхронизация отменена.")
+
+    cancel_type = callback.data.replace("cancel_", "")
+    logger.info(f"Синхронизация ({cancel_type}) отменена")
+
+    await asyncio.sleep(0.5)
+    await callback.message.edit_text(text="Админ панель", reply_markup=get_admin_kb())
+
+@router.callback_query(F.data=="sync_schedule", IsAdminFilter())
 async def show_sync_menu(callback: CallbackQuery):
     """
     Стартовый обработчик синхронизации.
@@ -57,7 +62,7 @@ async def show_sync_menu(callback: CallbackQuery):
     """
     await callback.message.edit_text(text="Выберите режим синхронизации:", reply_markup=get_type_sync_kb())
 
-@router.callback_query(F.data=="sync_university")
+@router.callback_query(F.data=="sync_university", IsAdminFilter())
 async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
     """
     Начало сценария синхронизации всего университета.
@@ -76,11 +81,12 @@ async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
     )
 
     await callback.message.edit_text(
-        "Отправьте 'Да' для подтверждение синхронизации.",
+        text="Отправьте 'Да' для подтверждение синхронизации.",
         reply_markup=kb_cancel
     )
+    await callback.answer()
 
-@router.message(StateFilter(SyncStates.confirm_full_sync))
+@router.message(StateFilter(SyncStates.confirm_full_sync), IsAdminFilter())
 async def confirm_full_sync(message: Message, state: FSMContext):
     """
     Выполняет синхронизацию расписания для всего университета.
@@ -99,7 +105,7 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением: {e}")
+            logger.warning(f"Не удалось удалить сообщение с подтверждением синхронизации: {e}")
 
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
@@ -107,19 +113,15 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         await state.clear()
         return
 
-    bot = message.bot
-    text_start = "⏳ Синхронизация расписания для всех факультетов и групп..."
-
     try:
+        text_start = "⏳ Синхронизация расписания для всех факультетов и групп..."
         sent_msg = await message.answer(text=text_start)
-        await send_chat_info_log(bot, text_start)
         logger.info(text_start)
 
         await run_full_sync()
 
         text_end = "✅ Синхронизация расписания завершена для всего университета."
         await sent_msg.edit_text(text=text_end)
-        logger.info(text_end)
         logger.info(text_end)
     except Exception as e:
         text_err = "❌ Ошибка при синхронизации расписания для всего университета"
@@ -128,7 +130,7 @@ async def confirm_full_sync(message: Message, state: FSMContext):
 
     await state.clear()
 
-@router.callback_query(F.data=="sync_faculty")
+@router.callback_query(F.data=="sync_faculty", IsAdminFilter())
 async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
     """
     Начало сценария синхронизации факультета.
@@ -139,7 +141,7 @@ async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text(
-            "Выберите факультет для синхронизации:",
+            text="Выберите факультет для синхронизации:",
             reply_markup=sync_kb.faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_faculty)
@@ -148,7 +150,7 @@ async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer("❌ Ошибка при синхронизации расписания для факультета")
 
 
-@router.callback_query(StateFilter(SyncStates.sync_faculty), F.data.startswith("faculty:"))
+@router.callback_query(StateFilter(SyncStates.sync_faculty), F.data.startswith("faculty:"), IsAdminFilter())
 async def sync_faculty_selected(callback: CallbackQuery, state: FSMContext):
     """
     Обрабатывает выбор факультета.
@@ -173,7 +175,7 @@ async def sync_faculty_selected(callback: CallbackQuery, state: FSMContext):
         logger.error(f"❌ Ошибка при синхронизации факультета {faculty_name}: {e}")
         await state.clear()
 
-@router.callback_query(F.data == "sync_group")
+@router.callback_query(F.data == "sync_group", IsAdminFilter())
 async def sync_group_start(callback: CallbackQuery, state: FSMContext):
     """
     Начало сценария синхронизации группы.
@@ -184,7 +186,7 @@ async def sync_group_start(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text(
-            "Выберите факультет:",
+            text="Выберите факультет:",
             reply_markup=sync_kb.faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_group_faculty)
@@ -193,7 +195,7 @@ async def sync_group_start(callback: CallbackQuery, state: FSMContext):
         logger.error(f"Ошибка в sync_group_start: {e}")
         await callback.message.answer("❌ Ошибка при синхронизации расписания для группы.")
 
-@router.callback_query(StateFilter(SyncStates.sync_group_faculty), F.data.startswith("faculty:"))
+@router.callback_query(StateFilter(SyncStates.sync_group_faculty), F.data.startswith("faculty:"), IsAdminFilter())
 async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
     """
     После выбора факультета — показывает группы этого факультета.
@@ -212,7 +214,7 @@ async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
             return
 
         await callback.message.edit_text(
-            f"Выберите группу факультета {faculty_name}:",
+            text=f"Выберите группу факультета {faculty_name}:",
             reply_markup=groups_kb
         )
         await state.set_state(SyncStates.sync_group_select)
@@ -222,7 +224,7 @@ async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
         await state.clear()
 
 
-@router.callback_query(StateFilter(SyncStates.sync_group_select), F.data.startswith("group:"))
+@router.callback_query(StateFilter(SyncStates.sync_group_select), F.data.startswith("group:"), IsAdminFilter())
 async def sync_group_selected(callback: CallbackQuery, state: FSMContext):
     """
     Выполняет синхронизацию для выбранной группы.
