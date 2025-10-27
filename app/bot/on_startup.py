@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 
@@ -24,11 +25,21 @@ async def on_startup():
     setup_logging(bot)
 
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
-    except (TelegramNetworkError, TelegramUnauthorizedError) as e:
-        logger.warning(f"⚠️ Не удалось удалить webhook: {e}")
+        await bot.get_me()
+    except TelegramUnauthorizedError:
+        logger.critical("❌ Telegram API отклонил токен — Unauthorized (неверный токен).")
+        sys.exit(1)
+    except TelegramNetworkError:
+        logger.critical("❌ Нет соединения с Telegram API, ошибка сети")
+        sys.exit(1)
     except Exception as e:
-        logger.warning(f"⚠️ Неизвестная ошибка при удалении webhook: {e}")
+        logger.critical(f"❌ Ошибка при проверке токена: {e}")
+        sys.exit(1)
+
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось удалить webhook: {e}")
 
     try:
         await checking_db()

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 try:
     bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-    dp = Dispatcher()
+    dp = Dispatcher(bot=bot)
 
 except (ValueError, TokenValidationError):
     logger.critical("❌ Ошибка при инициализации бота: неверный формат токена.")

@@ -16,9 +16,12 @@ async def main():
 
     try:
         await safe_polling()
-    finally:
-        await bot.session.close()
-        logger.info("✅ Сессия Telegram API закрыта.")
+    except Exception as e:
+        logger.critical(f"❌ Критическая ошибка в main: {e}")
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as err:
+        logger.critical(f"❌ Критическая ошибка при работе бота: {err}")
