@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import select
 from rapidfuzz import process
 from typing import List, Tuple
@@ -6,6 +8,9 @@ import asyncio
 from app.database.db import AsyncSessionLocal
 from app.database.models import Professor
 import app.utils.schedule.worker as worker
+
+
+logger = logging.getLogger(__name__)
 
 
 _professors_cache: List[Tuple[Professor, str]] = []
@@ -22,27 +27,14 @@ _cache_lock = asyncio.Lock()
 Используется в сочетании с double-checked locking pattern.
 """
 
-_cache_timestamp = 0
-"""
-Временная метка последнего обновления кэша в секундах.
-Используется для определения устаревания кэша относительно CACHE_TTL.
-Обнуляется при сбросе кэша.
-"""
-
-CACHE_TTL = 300  # 5 минут
-"""
-Time To Live (время жизни) кэша в секундах.
-Определяет как часто кэш автоматически обновляется.
-"""
-
 
 async def get_cached_professors() -> List[Tuple[Professor, str]]:
     """
-    Получает актуальный кэш преподавателей с автоматическим обновлением.
+    Получает актуальный кэш преподавателей.
 
     Реализует паттерн double-checked locking для эффективного кэширования:
     - Проверяет флаг CACHE_UPDATE_ENABLED для принудительного управления обновлениями
-    - Автоматически обновляет кэш при первом запросе или истечении TTL
+    - Автоматически обновляет кэш только при первом запросе (инициализация)
     - Защищает от race conditions с помощью асинхронной блокировки
 
     Возвращает:
@@ -53,30 +45,68 @@ async def get_cached_professors() -> List[Tuple[Professor, str]]:
         Exception: При других непредвиденных ошибках во время обновления кэша
     """
 
-    global _professors_cache, _cache_timestamp
+    global _professors_cache
 
     if not worker.CACHE_UPDATE_ENABLED:
         return _professors_cache
 
-    current_time = asyncio.get_event_loop().time()
-
-    # Если кэш пустой или устарел, обновляем его
-    if not _professors_cache or (current_time - _cache_timestamp) > CACHE_TTL:
+    # Обновляем кэш только если он пустой (инициализация)
+    if not _professors_cache:
         async with _cache_lock:
             # Вторая проверка под блокировкой
-            if not _professors_cache or (current_time - _cache_timestamp) > CACHE_TTL:
-                async with AsyncSessionLocal() as session:
-                    result = await session.execute(select(Professor))
-                    all_professors = result.scalars().all()
-
-                _professors_cache = [
-                    (prof, _normalize_name(prof.name))
-                    for prof in all_professors
-                ]
-
-                _cache_timestamp = current_time
+            if not _professors_cache:
+                await _update_professors_cache()
 
     return _professors_cache
+
+
+async def update_professors_cache() -> None:
+    """
+    Принудительное обновление кэша преподавателей.
+
+    Используется для ручного обновления кэша после изменений в данных,
+    таких как завершение полной синхронизации.
+
+    Исключения:
+        OperationalError: При проблемах с подключением к базе данных
+        Exception: При других непредвиденных ошибках во время обновления кэша
+    """
+
+    global _professors_cache
+
+    async with _cache_lock:
+        await _update_professors_cache()
+
+
+async def _update_professors_cache() -> None:
+    """
+    Внутренняя функция для обновления кэша преподавателей.
+
+    Выполняет непосредственную загрузку данных из базы и обновление кэша.
+    Должна вызываться только под блокировкой _cache_lock.
+    """
+
+    global _professors_cache
+
+    if not worker.CACHE_UPDATE_ENABLED:
+        return
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(Professor))
+            all_professors = result.scalars().all()
+
+        _professors_cache = [
+            (prof, _normalize_name(prof.name))
+            for prof in all_professors
+        ]
+
+        logger.info("✅ Кэш преподавателей обновлён. Загружено %d преподавателей", len(_professors_cache))
+
+    except Exception as e:
+        logger.error("Ошибка при обновлении кэша преподавателей: %s", str(e))
+        raise
+
 
 async def invalidate_professors_cache():
     """
@@ -92,10 +122,11 @@ async def invalidate_professors_cache():
     выполнить полное обновление из базы данных.
     """
 
-    global _professors_cache, _cache_timestamp
+    global _professors_cache
     async with _cache_lock:
         _professors_cache = []
         _cache_timestamp = 0
+
 
 def _normalize_name(name: str) -> str:
     """

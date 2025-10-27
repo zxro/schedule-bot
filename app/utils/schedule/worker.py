@@ -27,7 +27,7 @@ from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLess
 from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.schedule.search_professors import get_cached_professors
+from app.utils.schedule.search_professors import update_professors_cache
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +246,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
     global CACHE_UPDATE_ENABLED
 
     client = TimetableClient()
+    sync_successful = False
 
     try:
         async with AsyncSessionLocal() as session:
@@ -309,9 +310,6 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                 await session.rollback()
                 logger.error("Ошибка при удалении групп: %s", str(e))
 
-            async with _cache_lock:
-                CACHE_UPDATE_ENABLED = False
-
             try:
                 await upsert_lessons_for_professors(session)
                 await session.commit()
@@ -340,10 +338,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                 await session.rollback()
                 logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
 
-            finally:
-                async with _cache_lock:
-                    CACHE_UPDATE_ENABLED = True
-
+        sync_successful = True
     except Exception as e:
         logger.error("Критическая ошибка в синхронизации: %s", str(e))
         raise
@@ -351,7 +346,14 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
     finally:
         await client.close()
 
-        await get_cached_professors()
+        if sync_successful:
+            async with _cache_lock:
+                CACHE_UPDATE_ENABLED = False
+
+            await update_professors_cache()
+
+            async with _cache_lock:
+                CACHE_UPDATE_ENABLED = True
 
     logger.info("✅ Полная синхронизация завершена.")
     logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
