@@ -48,8 +48,11 @@ async def clear_sync_tables(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         text="⚠️ Эта операция удалит данные из таблиц: факультетов, групп, пар студентов, преподавателей, пар преподавателей.\n"
              "Введите пароль для подтверждения:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_clear_sync_tables")]
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+            [
+                InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_clear_sync_tables")
+            ]
         ])
     )
 
@@ -85,15 +88,14 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением очистки таблиц: {e}")
+            logger.debug(f"Не удалось удалить сообщение с подтверждением очистки таблиц: {e}")
 
-    password = message.text
     try:
         await message.delete()
     except Exception as e:
         logger.warning(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
 
-    if password != settings.ADMIN_PASSWORD:
+    if message.text != settings.ADMIN_PASSWORD:
         logger.warning("❌ Попытка очистки таблиц синхронизаций с неверным паролем.")
         try:
             msg = await message.answer("❌ Неверный пароль")
@@ -101,7 +103,7 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
             try:
                 await msg.delete()
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение 'Неверный пароль': {e}")
+                logger.debug(f"⚠️ Не удалось удалить сообщение 'Неверный пароль': {e}")
         except Exception as e:
             logger.error(f"❌ Ошибка при отправке сообщения 'Неверный пароль': {e}")
         await state.clear()
@@ -109,23 +111,22 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
 
     async with AsyncSessionLocal() as session:
         try:
-            for model, name in [(ProfessorLesson, "ProfessorLesson"),
-                                (Lesson, "Lesson"),
-                                (Professor, "Professor"),
-                                (Group, "Group"),
-                                (Faculty, "Faculty")]:
-                stmt = delete(model)
-                result = await session.execute(stmt)
-                logger.info(f"Удалено {result.rowcount or 0} записей из таблицы {name}.")
+            async with session.begin():
+                await session.execute(delete(ProfessorLesson))
+                await session.execute(delete(Lesson))
+                await session.execute(delete(Professor))
+                await session.execute(delete(Group))
+                await session.execute(delete(Faculty))
 
-            await session.commit()
             txt = "✅ Таблицы Faculty, Group, Lesson, Professor, ProfessorLesson успешно очищены."
             await message.answer(txt)
             logger.info(txt)
-            await send_chat_info_log(txt)
+            try:
+                await send_chat_info_log(txt)
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить лог в Telegram: {e}")
 
         except Exception as e:
-            await session.rollback()
             logger.error(f"❌ Ошибка при очистке таблиц синхронизации: {e}")
 
     await state.clear()
