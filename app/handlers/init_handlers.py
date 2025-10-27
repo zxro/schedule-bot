@@ -9,6 +9,7 @@ from app.handlers.other_functions import router as other_functions_router
 from app.handlers.cleanup_tables.clear_users import router as clear_users_router
 from app.handlers.cleanup_tables.clear_sync_tables import router as clean_other_tables_router
 from app.handlers.professor_schedule import router as professor_schedule_router
+from app.handlers.bells_schedule import router as bells_schedule_router
 
 def register_handlers(dp: Dispatcher):
     """Регистрирует роутеры с обработчиками сообщений и callback"""
@@ -22,3 +23,4 @@ def register_handlers(dp: Dispatcher):
     dp.include_router(clear_users_router)
     dp.include_router(clean_other_tables_router)
     dp.include_router(professor_schedule_router)
+    dp.include_router(bells_schedule_router)
