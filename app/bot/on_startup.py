@@ -9,6 +9,7 @@ from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.custom_logging.setup_log import setup_logging
 from app.database.db import checking_db
 from app.handlers.init_handlers import register_handlers
+from app.utils.schedule.auto_sync import schedule_sync_task
 from app.utils.schedule.search_professors import update_professors_cache
 from app.utils.week_mark.week_mark import init_week_mark, update_week_mark
 from app.middlewares.UserContextMiddleware import UserContextMiddleware
@@ -38,6 +39,8 @@ async def on_startup():
 
     await init_week_mark()
     asyncio.create_task(update_week_mark())
+
+    asyncio.create_task(schedule_sync_task())
 
     await update_professors_cache()
 
