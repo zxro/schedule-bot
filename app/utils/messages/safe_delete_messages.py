@@ -11,7 +11,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 from aiogram import Bot
 
-from app.bot import bot
+from app.bot.bot import bot
 
 logger = logging.getLogger(__name__)
 

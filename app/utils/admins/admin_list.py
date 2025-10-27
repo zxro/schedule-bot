@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy import select
 
-from app.bot import bot
+from app.bot.bot import bot
 from app.database.db import AsyncSessionLocal
 from app.database.models import User
 

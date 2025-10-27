@@ -20,7 +20,7 @@ from io import BytesIO
 from aiogram import Bot
 from asyncio import Queue
 
-from app.bot import bot as bot_info_log
+from app.bot.bot import bot as bot_info_log
 from app.config import settings
 from aiogram.types import BufferedInputFile
 from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
