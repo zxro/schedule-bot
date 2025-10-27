@@ -131,7 +131,7 @@ async def refresh_admin_list():
                 username = await get_username_from_tg(user.id)
                 LIST_ADMINS[user.id] = username
 
-            logger.info(f"✅ Список администраторов обновлен: {len(LIST_ADMINS)} админов")
+            logger.info(f"✅ Список администраторов обновлен, админ(ов): {len(LIST_ADMINS)}")
 
     except Exception as e:
         logger.error(f"❌ Ошибка при заполнении списка администраторов: {e}")
