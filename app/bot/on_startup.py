@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
+
 from app.bot.bot import bot, dp
 from app.keyboards.init_keyboards import refresh_all_keyboards
 from app.keyboards.sync_kb import refresh_sync_keyboards
@@ -19,18 +21,31 @@ logger = logging.getLogger(__name__)
 async def on_startup():
     """Настройка бота перед запуском"""
 
-    await bot.delete_webhook(drop_pending_updates=True)
-
     setup_logging(bot)
 
-    await checking_db()
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except (TelegramNetworkError, TelegramUnauthorizedError) as e:
+        logger.warning(f"⚠️ Не удалось удалить webhook: {e}")
+    except Exception as e:
+        logger.warning(f"⚠️ Неизвестная ошибка при удалении webhook: {e}")
 
-    await refresh_sync_keyboards()
-    await refresh_all_keyboards()
+    try:
+        await checking_db()
+    except Exception as e:
+        logger.error(f"❌ Ошибка при проверке базы данных: {e}")
 
-    await refresh_admin_list()
+    try:
+        await refresh_sync_keyboards()
+        await refresh_all_keyboards()
+    except Exception as e:
+        logger.error(f"❌ Ошибка при обновлении клавиатур: {e}")
 
-    await check_admins_start()
+    try:
+        await refresh_admin_list()
+        await check_admins_start()
+    except Exception as e:
+        logger.error(f"❌ Ошибка при работе с администраторами: {e}")
 
     dp.message.middleware(UserContextMiddleware())
     dp.callback_query.middleware(UserContextMiddleware())
@@ -38,11 +53,19 @@ async def on_startup():
     register_handlers(dp)
 
     await init_week_mark()
-    asyncio.create_task(update_week_mark())
 
+    asyncio.create_task(update_week_mark())
     asyncio.create_task(schedule_sync_task())
 
-    await update_professors_cache()
+    try:
+        await asyncio.wait_for(update_professors_cache(), timeout=90)
+    except asyncio.TimeoutError:
+        logger.warning("⚠️ Обновление кэша преподавателей превысило 90 секунд.")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при обновлении кэша преподавателей: {e}")
 
-    logger.info("Бот успешно запущен")
-    await send_chat_info_log("Бот успешно запущен")
+    logger.info("✅ Бот успешно запущен")
+    try:
+        await send_chat_info_log("✅ Бот успешно запущен")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось отправить лог запуска в Telegram: {e}")
