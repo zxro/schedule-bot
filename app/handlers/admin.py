@@ -14,8 +14,7 @@ from app.state.states import AddAdminStates
 from app.database.db import AsyncSessionLocal
 from app.utils.admins.admin_list import add_admin_to_list, remove_admin_from_list, get_admin_username
 from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
-from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message, \
-    safe_delete_message_by_id
+from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message
 import app.utils.admins.admin_list as admin_list
 
 router = Router()
@@ -166,13 +165,13 @@ async def reading_id(message: Message, state: FSMContext):
             try:
                 await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
+                logger.debug(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
 
         try:
             user_id = int(message.text)
         except ValueError:
             await message.answer("❌ Неверный формат ID. Введите числовой ID.")
-            logger.info(f"⚠️ Введён некорректный ID: '{message.text}'")
+            logger.debug(f"⚠️ Введён некорректный ID: '{message.text}'")
 
             await asyncio.sleep(1)
             await message.answer(

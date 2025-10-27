@@ -92,7 +92,7 @@ async def delete_group_if_exists(session, group_name: str):
     if not group:
         return False
 
-    logger.info("Удалена группа без расписания: %s", group_name)
+    logger.debug("Удалена группа без расписания: %s", group_name)
     await session.execute(delete(Lesson).where(Lesson.group_id == group.id))
     await session.delete(group)
     await session.commit()
@@ -224,7 +224,7 @@ async def upsert_lessons_for_professors(session: AsyncSession):
         logger.info(f"✅ Расписание преподавателей успешно обновлено. Обработано {len(added_records)} записей.")
 
     except Exception as e:
-        logger.error(f"Ошибка при перестроении расписания преподавателей: {e}")
+        logger.error(f"Ошибка при обновлении расписания преподавателей: {e}")
         await session.rollback()
         raise
 
@@ -302,7 +302,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                         deleted_groups += 1
                         await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
                         await session.delete(grp)
-                        logger.info("Удалена группа без расписания: %s", grp.group_name)
+                        logger.debug("Удалена группа без расписания: %s", grp.group_name)
 
                 await session.commit()
 
@@ -326,7 +326,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                         if not lessons_for_prof:
                             deleted_profs += 1
                             await session.delete(prof)
-                            logger.info("Удалён преподаватель без пар: %s", prof.name)
+                            logger.debug("Удалён преподаватель без пар: %s", prof.name)
 
                     await session.commit()
 
@@ -340,7 +340,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
 
         sync_successful = True
     except Exception as e:
-        logger.error("Критическая ошибка в синхронизации: %s", str(e))
+        logger.error("Ошибка в синхронизации: %s", str(e))
         raise
 
     finally:
@@ -438,7 +438,7 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
         existing = q.scalars().all()
         for g in existing:
             if g.group_name not in valid_groups:
-                logger.info("Удаление группы без расписания: %s", g.group_name)
+                logger.debug("Удаление группы без расписания: %s", g.group_name)
                 await session.execute(delete(Lesson).where(Lesson.group_id == g.id))
                 await session.delete(g)
 
@@ -446,8 +446,7 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
         await client.close()
 
         total = len(valid_groups)
-        logger.info("✅ Синхронизация для %s завершена. Групп обработано: %d",
-                    faculty_name, total)
+        logger.info("✅ Синхронизация для %s завершена. Групп обработано: %d",faculty_name, total)
 
         await refresh_all_keyboards()
 

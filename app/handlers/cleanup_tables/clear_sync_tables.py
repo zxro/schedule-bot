@@ -12,7 +12,6 @@ from app.config import settings
 from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
 from app.state.states import DeleteSyncTablesStates
-from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 
 logger = logging.getLogger(__name__)
@@ -93,13 +92,13 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
     try:
         await message.delete()
     except Exception as e:
-        logger.warning(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
+        logger.debug(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
 
     if message.text != settings.ADMIN_PASSWORD:
         logger.warning("❌ Попытка очистки таблиц синхронизаций с неверным паролем.")
         try:
             msg = await message.answer("❌ Неверный пароль")
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(1)
             try:
                 await msg.delete()
             except Exception as e:
@@ -121,10 +120,6 @@ async def confirm_clear_sync_tables(message: Message, state: FSMContext):
             txt = "✅ Таблицы Faculty, Group, Lesson, Professor, ProfessorLesson успешно очищены."
             await message.answer(txt)
             logger.info(txt)
-            try:
-                await send_chat_info_log(txt)
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить лог в Telegram: {e}")
 
         except Exception as e:
             logger.error(f"❌ Ошибка при очистке таблиц синхронизации: {e}")
