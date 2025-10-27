@@ -40,6 +40,7 @@ def get_schedule_professors_kb(professor_name: str) -> InlineKeyboardMarkup:
         ]
     )
 
+
 def get_other_schedules_kb():
     """Возвращает клавиатуру выбора типа расписания для студента."""
     kb = InlineKeyboardMarkup(

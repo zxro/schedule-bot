@@ -18,20 +18,24 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import app.keyboards.base_kb as base_kb
 
+
 faculty_keyboard_find = None
 groups_keyboards_find = None
+
 
 async def refresh_find_keyboards():
     """
     Пересоздаёт клавиатуры для поиска расписания.
     Вызывать после старта бота и после каждой синхронизации данных.
     """
+
     if base_kb.faculty_keyboard_base is None or base_kb.groups_keyboards_base is None:
         await base_kb.refresh_base_keyboards()
 
     global faculty_keyboard_find, groups_keyboards_find
     faculty_keyboard_find = await create_faculty_keyboard_find()
     groups_keyboards_find = await create_groups_keyboards_find()
+
 
 async def create_faculty_keyboard_find():
     """
@@ -55,6 +59,7 @@ async def create_faculty_keyboard_find():
             [InlineKeyboardButton(text="◀️ Назад к расписаниям", callback_data="cancel_faculty_find")]
         ]
     )
+
     return new_kb
 
 

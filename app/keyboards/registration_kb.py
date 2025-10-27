@@ -3,17 +3,21 @@ import app.keyboards.base_kb as base_kb
 
 faculty_keyboard_reg = None
 groups_keyboards_reg = None
+
+
 async def refresh_reg_keyboards():
     """
     Пересоздаёт клавиатуры для регистрации.
     Вызывать после старта бота и после любых изменений групп/факультетов.
     """
+
     if base_kb.faculty_keyboard_base is None or base_kb.groups_keyboards_base is None:
         await base_kb.refresh_base_keyboards()
 
     global faculty_keyboard_reg, groups_keyboards_reg
     faculty_keyboard_reg = await create_faculty_keyboard_reg()
     groups_keyboards_reg = await create_group_keyboards_reg()
+
 
 async def create_faculty_keyboard_reg():
     """
@@ -33,6 +37,7 @@ async def create_faculty_keyboard_reg():
             [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_reg")]
         ]
     )
+
     return new_kb
 
 async def create_group_keyboards_reg():

@@ -21,7 +21,7 @@ from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
 from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.base_kb import abbr_faculty
-from app.keyboards.sync_kb import get_type_sync_kb, refresh_sync_keyboards
+from app.keyboards.sync_kb import get_type_sync_kb
 import app.keyboards.sync_kb as sync_kb
 
 from app.state.states import SyncStates
@@ -37,19 +37,16 @@ async def cancel_sync(callback: CallbackQuery, state: FSMContext):
     Действия:
     - Очищает состояние.
     - Сообщает пользователю об отмене.
-    - Логирует событие.
     """
 
     await state.clear()
-    await callback.answer()
 
     await callback.message.edit_text(f"❌ Синхронизация отменена.")
-
-    cancel_type = callback.data.replace("cancel_", "")
-    logger.info(f"Синхронизация ({cancel_type}) отменена")
+    await callback.answer()
 
     await asyncio.sleep(0.5)
     await callback.message.edit_text(text="Админ панель", reply_markup=get_admin_kb())
+    await callback.answer()
 
 @router.callback_query(F.data=="sync_schedule", IsAdminFilter())
 async def show_sync_menu(callback: CallbackQuery):
@@ -61,6 +58,7 @@ async def show_sync_menu(callback: CallbackQuery):
       (университет, факультет, группа).
     """
     await callback.message.edit_text(text="Выберите режим синхронизации:", reply_markup=get_type_sync_kb())
+    await callback.answer()
 
 @router.callback_query(F.data=="sync_university", IsAdminFilter())
 async def sync_all_handler(callback: CallbackQuery, state: FSMContext):
@@ -105,11 +103,10 @@ async def confirm_full_sync(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением синхронизации: {e}")
+            logger.debug(f"Не удалось удалить сообщение с подтверждением синхронизации: {e}")
 
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
-        logger.info("Синхронизация для всего университета отменена.")
         await state.clear()
         return
 
@@ -148,6 +145,7 @@ async def sync_faculty_handler(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка в sync_faculty_handler: {e}")
         await callback.message.answer("❌ Ошибка при синхронизации расписания для факультета")
+        await callback.answer()
 
 
 @router.callback_query(StateFilter(SyncStates.sync_faculty), F.data.startswith("faculty:"), IsAdminFilter())
@@ -168,10 +166,12 @@ async def sync_faculty_selected(callback: CallbackQuery, state: FSMContext):
         await run_full_sync_for_faculty(faculty_name)
 
         await callback.message.edit_text(f"✅ Синхронизация завершена для факультета {faculty_name}.")
+        await callback.answer()
         logger.info(f"✅ Синхронизация завершена для факультета {faculty_name}.")
         await state.clear()
     except Exception as e:
         await callback.message.edit_text(text=f"❌ Ошибка при синхронизации факультета.")
+        await callback.answer()
         logger.error(f"❌ Ошибка при синхронизации факультета {faculty_name}: {e}")
         await state.clear()
 
@@ -190,10 +190,10 @@ async def sync_group_start(callback: CallbackQuery, state: FSMContext):
             reply_markup=sync_kb.faculty_keyboard_sync
         )
         await state.set_state(SyncStates.sync_group_faculty)
-        await refresh_sync_keyboards()
     except Exception as e:
         logger.error(f"Ошибка в sync_group_start: {e}")
         await callback.message.answer("❌ Ошибка при синхронизации расписания для группы.")
+        await callback.answer()
 
 @router.callback_query(StateFilter(SyncStates.sync_group_faculty), F.data.startswith("faculty:"), IsAdminFilter())
 async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
@@ -221,6 +221,7 @@ async def sync_group_select_faculty(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка в sync_group_select_faculty: {e}")
         await callback.message.answer("❌ Ошибка при синхронизации расписания для группы.")
+        await callback.answer()
         await state.clear()
 
 
@@ -238,6 +239,7 @@ async def sync_group_selected(callback: CallbackQuery, state: FSMContext):
     logger.info(f"⏳Начата синхронизация для группы {group_name}...")
     try:
         await callback.message.edit_text(f"⏳ Синхронизация расписания для группы {group_name}...")
+        await callback.answer()
 
         await run_full_sync_for_group(group_name)
 
@@ -246,5 +248,6 @@ async def sync_group_selected(callback: CallbackQuery, state: FSMContext):
         await state.clear()
     except Exception as e:
         await callback.message.edit_text(text=f"❌ Ошибка при синхронизации расписания для группы: {group_name}")
+        await callback.answer()
         logger.error(f"❌ Ошибка при синхронизации группы: {e}")
         await state.clear()

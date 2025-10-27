@@ -22,10 +22,7 @@ logger = logging.getLogger(__name__)
 async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
-    try:
-        await safe_delete_callback_message(callback)
-    except Exception as e:
-        logger.error(f"Не удалось удалить сообщение: {e}")
+    await safe_delete_callback_message(callback)
 
 
 @router.message(F.text == "Регистрация")
@@ -39,7 +36,7 @@ async def start_registration(message: Message, state: FSMContext):
     if existing_user:
         # Пользователь уже зарегистрирован
         await message.answer(
-            "✅ Вы уже зарегистрированы!\n\n"
+            text="✅ Вы уже зарегистрированы!\n\n"
             "Вы можете использовать полный функционал бота.\n"
             "Если хотите изменить данные, используйте раздел \"Прочие функции\" → \"Изменить персональные данные\"",
             reply_markup=await get_main_menu_kb(message.from_user.id)
@@ -47,7 +44,7 @@ async def start_registration(message: Message, state: FSMContext):
         return
 
     # Если пользователь не зарегистрирован, начинаем процесс регистрации
-    await message.answer("Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
+    await message.answer(text="Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
     await state.set_state(RegistrationStates.choice_faculty)
 
 
@@ -64,7 +61,7 @@ async def registration_faculty(callback: CallbackQuery, state: FSMContext):
 
     await state.update_data(faculty_name=faculty_name, faculty_abbr=faculty_abbr)
     await callback.message.edit_text(
-        f"Выберите вашу группу факультета {faculty_name}:",
+        text=f"Выберите вашу группу факультета {faculty_name}:",
         reply_markup=groups_kb
     )
     await state.set_state(RegistrationStates.choice_group)

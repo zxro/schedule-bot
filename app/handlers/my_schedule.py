@@ -24,7 +24,7 @@ async def show_my_schedule_start(message: Message, state: FSMContext):
 
     if not user:
         await message.answer(
-            "❌ Вы не зарегистрированы. Пожалуйста, пройдите регистрацию сначала.",
+            text="❌ Вы не зарегистрированы. Пожалуйста, пройдите регистрацию сначала.",
             reply_markup=ReplyKeyboardMarkup(
                 keyboard=[[KeyboardButton(text="Регистрация")]],
                 resize_keyboard=True
@@ -35,6 +35,6 @@ async def show_my_schedule_start(message: Message, state: FSMContext):
     await state.update_data(group_name=user.group.group_name)
     await state.set_state(ShowScheduleStates.choice_week)
 
-    await message.answer(f"Выберите тип расписания:\n"
+    await message.answer(text=f"Выберите тип расписания:\n"
                          f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}",
                          reply_markup=get_choice_week_type_kb())
