@@ -17,9 +17,9 @@ engine = create_async_engine(
     echo=False,                         # echo=True = логировать SQL-запросы в консоль
     future=True,                        # новый API SQLAlchemy 2.0
     poolclass=StaticPool,               # одно и то же соединение для всех операций
-    connect_args={                      # для работы в нескольких потоках и установка таймаута
-        "check_same_thread": False,
-        "timeout": 15
+    connect_args={
+        "check_same_thread": False,  # для многопоточности SQLite
+        "timeout": 15                # таймаут
     }
 )
 
