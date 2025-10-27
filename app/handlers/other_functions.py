@@ -24,7 +24,7 @@ async def other_functions(message: Message):
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Изменить персональные данные", callback_data="change_personal_data")],
+            [InlineKeyboardButton(text="Изменить группу", callback_data="change_group_data")],
             [InlineKeyboardButton(text="Выйти из профиля", callback_data="logout")],
             [InlineKeyboardButton(text="Назад", callback_data="exit_other_functions")]
         ]
@@ -33,7 +33,7 @@ async def other_functions(message: Message):
     await message.answer(text="Выберите действие:", reply_markup=kb)
 
 
-@router.callback_query(F.data == "change_personal_data")
+@router.callback_query(F.data == "change_group_data")
 async def change_personal_data(callback: CallbackQuery, state: FSMContext):
     """Запуск процесса изменения персональных данных"""
     await callback.message.edit_text(text="Выберите ваш факультет:", reply_markup=registration_kb.faculty_keyboard_reg)
