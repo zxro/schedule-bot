@@ -17,6 +17,36 @@ from sqlalchemy.orm import relationship, declarative_base
 Base = declarative_base()
 
 
+class User(Base):
+    """
+    Пользователь
+
+    Поля:
+    id : Integer
+        Первичный ключ (берется id пользователя его телеграм аккаунта)
+    group_id : Integer
+        Внешний ключ на группу.
+   faculty_id : Integer
+        Внешний ключ на факультет.
+    role : Integer
+        Роль пользователя (0-9), по умолчанию 0.
+        0 - пользователь
+        1 - админ
+    """
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)  # Telegram user_id
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True, index=True)
+    role = Column(Integer, nullable=False, default=0)
+
+    group = relationship("Group", lazy="joined")
+    faculty = relationship("Faculty", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint('id', name='uq_user_id'),
+    )
+
 class Faculty(Base):
     """
     Модель факультета.
@@ -97,37 +127,6 @@ class Lesson(Base):
             'professors', 'rooms', 'week_mark', 'type',
             name='uq_lesson_unique'
         ),
-    )
-
-
-class User(Base):
-    """
-    Пользователь
-
-    Поля:
-    id : Integer
-        Первичный ключ (берется id пользователя его телеграм аккаунта)
-    group_id : Integer
-        Внешний ключ на группу.
-   faculty_id : Integer
-        Внешний ключ на факультет.
-    role : Integer
-        Роль пользователя (0-9), по умолчанию 0.
-        0 - пользователь
-        1 - админ
-    """
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)  # Telegram user_id
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
-    faculty_id = Column(Integer, ForeignKey("faculties.id", ondelete="SET NULL"), nullable=True, index=True)
-    role = Column(Integer, nullable=False, default=0)
-
-    group = relationship("Group", lazy="joined")
-    faculty = relationship("Faculty", lazy="joined")
-
-    __table_args__ = (
-        UniqueConstraint('id', name='uq_user_id'),
     )
 
 
