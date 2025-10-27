@@ -164,7 +164,7 @@ async def reading_id(message: Message, state: FSMContext):
         message_id_to_delete = data.get("message_id")
         if message_id_to_delete:
             try:
-                await message.bot.delete_message(chat_id=message.chat.id, message_id=0)
+                await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
 
@@ -175,9 +175,12 @@ async def reading_id(message: Message, state: FSMContext):
             logger.info(f"⚠️ Введён некорректный ID: '{message.text}'")
 
             await asyncio.sleep(1)
-            await message.answer(text="Повторно введите ID пользователя для назначения администратором.\n"
-                                 "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
-                                 reply_markup=cancel_kb)
+            await message.answer(
+                text="Повторно введите ID пользователя для назначения администратором.\n"
+                     "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
+                reply_markup=cancel_kb
+            )
+
             await state.set_state(AddAdminStates.waiting_id)
             await state.update_data(message_id=message.message_id)
             return
