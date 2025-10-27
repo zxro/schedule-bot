@@ -3,16 +3,16 @@
 
 Содержит функции для:
 1. Генерации клавиатуры факультетов с кнопкой отмены поиска.
-2. Генерации словаря клавиатур групп факультетов с кнопкой отмены поиска.
+2. Генерации словаря клавиатур групп факультетов с кнопкой "◀️ Назад к расписаниям".
 3. Пересоздания клавиатур после обновления данных (например, после синхронизации).
 
 Использует базовые функции:
-- create_faculty_keyboard() — возвращает клавиатуру факультетов без кнопок отмены.
-- create_courses_keyboards() — возвращает словарь клавиатур групп по факультетам без кнопок отмены.
+- create_faculty_keyboard() — возвращает базовую клавиатуру факультетов.
+- create_courses_keyboards() — возвращает словарь базовых клавиатур групп по факультетам.
 
 Результат:
-- faculty_keyboard_find — клавиатура факультетов с кнопкой "Отмена поиска".
-- groups_keyboards_find — словарь клавиатур групп факультетов с кнопкой "Отмена поиска".
+- faculty_keyboard_find — клавиатура факультетов с кнопкой "◀️ Назад к расписаниям".
+- groups_keyboards_find — словарь клавиатур групп факультетов с кнопкой "◀️ Назад к расписаниям".
 """
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -38,8 +38,7 @@ async def create_faculty_keyboard_find():
     Создаёт клавиатуру факультетов для поиска расписания.
 
     Основные кнопки — список факультетов (из create_faculty_keyboard),
-    в конец добавляется кнопка:
-        ❌ Отмена
+    в конец добавляется кнопка: "◀️ Назад к расписаниям"
 
     Returns:
         InlineKeyboardMarkup | None:
@@ -53,7 +52,7 @@ async def create_faculty_keyboard_find():
 
     new_kb = InlineKeyboardMarkup(
         inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_faculty_find")]
+            [InlineKeyboardButton(text="◀️ Назад к расписаниям", callback_data="cancel_faculty_find")]
         ]
     )
     return new_kb
@@ -64,8 +63,7 @@ async def create_groups_keyboards_find():
     Создаёт словарь клавиатур групп факультетов для поиска расписания.
 
     Для каждого факультета берётся базовая клавиатура групп (из create_courses_keyboards),
-    в конец каждой клавиатуры добавляется кнопка:
-        ❌ Отмена
+    в конец каждой клавиатуры добавляется кнопка: "◀️ Назад к расписаниям"
 
     Returns:
         dict[str, InlineKeyboardMarkup] | None:
@@ -81,7 +79,7 @@ async def create_groups_keyboards_find():
     for faculty, kb in base.items():
         new_kb = InlineKeyboardMarkup(
             inline_keyboard=[row.copy() for row in kb.inline_keyboard] + [
-                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_group_find")]
+                [InlineKeyboardButton(text="◀️ Назад к расписаниям", callback_data="cancel_group_find")]
             ]
         )
         faculty_kb[faculty] = new_kb

@@ -12,6 +12,8 @@ from app.keyboards.main_menu_kb import get_main_menu_kb
 from app.state.states import RegistrationStates
 from sqlalchemy import select
 
+from app.utils.messages.safe_delete_messages import safe_delete_callback_message
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -21,8 +23,7 @@ async def cancel_registration(callback: CallbackQuery, state: FSMContext):
     """Отмена регистрации"""
     await state.clear()
     try:
-        await callback.answer()
-        await callback.message.delete()
+        await safe_delete_callback_message(callback)
     except Exception as e:
         logger.error(f"Не удалось удалить сообщение: {e}")
 

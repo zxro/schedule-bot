@@ -18,5 +18,12 @@ class RegistrationStates(StatesGroup):
 class AddAdminStates(StatesGroup):
     waiting_id = State()
 
-class DeleteUsersBDStates(StatesGroup):
+class ClearUsersTableStates(StatesGroup):
+    confirm_delete = State()
+
+class ProfessorScheduleStates(StatesGroup):
+    waiting_name = State()
+    waiting_type_week = State()
+
+class DeleteSyncTablesStates(StatesGroup):
     confirm_delete = State()

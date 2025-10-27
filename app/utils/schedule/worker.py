@@ -6,7 +6,8 @@
 2. Проверить и создать при необходимости факультеты и группы в базе данных.
 3. Получить расписание для каждой группы.
 4. Синхронизировать записи пар (удаление старых и вставка новых) в таблице Lesson.
-5. Вести логирование всех шагов, ошибок и количества обработанных групп.
+5. Синхронизировать расписание для преподавателей
+6. Вести логирование всех шагов, ошибок и количества обработанных групп.
 
 Используемые компоненты:
 - TimetableClient (app/fetcher.py): асинхронный клиент для API расписания.
@@ -14,19 +15,26 @@
 - AsyncSessionLocal (app/db.py): фабрика асинхронных сессий SQLAlchemy.
 - SQLAlchemy модели: Faculty, Group, Lesson, TimeSlot, WeekMarkEnum.
 """
-
+import asyncio
 import logging
 from typing import List, Set
 
 from app.keyboards.init_keyboards import refresh_all_keyboards
 from app.utils.schedule.fetcher import TimetableClient
-from app.utils.schedule.parser import extract_lessons_from_timetable_json
+from app.utils.schedule.parser import extract_lessons_from_timetable_json, extract_professor_names
 from app.database.db import AsyncSessionLocal
-from app.database.models import Faculty, Group, Lesson
+from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLesson
 from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.utils.schedule.search_professors import get_cached_professors
+
 logger = logging.getLogger(__name__)
+
+
+CACHE_UPDATE_ENABLED = True
+_cache_lock = asyncio.Lock()
+
 
 async def ensure_faculty_and_group(session: AsyncSession, faculty_name: str, group_name: str):
     """
@@ -84,7 +92,7 @@ async def delete_group_if_exists(session, group_name: str):
     if not group:
         return False
 
-    logger.info("Удаление группы %s — отсутствует расписание", group_name)
+    logger.info("Удалена группа без расписания: %s", group_name)
     await session.execute(delete(Lesson).where(Lesson.group_id == group.id))
     await session.delete(group)
     await session.commit()
@@ -123,10 +131,6 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
 
         count = 0
         for rec in records:
-            wm = rec.get("week_mark") or None
-            if wm not in (None, "every", "plus", "minus"):
-                wm = None
-
             lesson = Lesson(
                 group_id=group_obj.id,
                 weekday=rec.get("weekday"),
@@ -134,7 +138,7 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
                 subject=rec.get("subject"),
                 professors=rec.get("professors"),
                 rooms=rec.get("rooms"),
-                week_mark=wm,
+                week_mark=rec.get("week_mark"),
                 type=rec.get("type"),
             )
             session.add(lesson)
@@ -148,92 +152,210 @@ async def upsert_lessons_for_group(session: AsyncSession, group_obj: Group, reco
         raise
 
 
+async def upsert_lessons_for_professors(session: AsyncSession):
+    """
+    Полностью перестраивает расписание преподавателей
+    на основе таблицы Lesson.
+
+    Логика:
+    1. Удаляет все старые записи в professor_lessons.
+    2. Проходит по всем Lesson.
+    3. Для каждого преподавателя в строке создаёт (или находит) Professor.
+    4. Добавляет новые пары без дублей.
+    """
+
+    try:
+        logger.info("🔄 Обновляется расписание преподавателей...")
+
+        await session.execute(delete(ProfessorLesson))
+
+        result = await session.execute(select(Lesson))
+        lessons = result.scalars().all()
+
+        professors_cache: dict[str, int] = {}  # имя -> id
+        added_records: set[tuple[int, int, int, str, str, str]] = set()  # защита от дублей
+
+        for lesson in lessons:
+            professors_text = (lesson.professors or "").strip()
+            if not professors_text:
+                continue
+
+            professor_names = extract_professor_names(professors_text)
+
+            if not professor_names:
+                continue
+
+            for prof_name in professor_names:
+                prof_id = professors_cache.get(prof_name)
+                if not prof_id:
+                    res = await session.execute(select(Professor).where(Professor.name == prof_name))
+                    professor = res.scalar_one_or_none()
+                    if not professor:
+                        professor = Professor(name=prof_name)
+                        session.add(professor)
+                        await session.flush()
+                    prof_id = professor.id
+                    professors_cache[prof_name] = prof_id
+
+                # проверка дублей
+                key = (
+                    prof_id,
+                    lesson.weekday,
+                    lesson.lesson_number,
+                    lesson.subject,
+                    lesson.rooms,
+                    lesson.week_mark,
+                )
+                if key in added_records:
+                    continue
+                added_records.add(key)
+
+                pl = ProfessorLesson(
+                    professor_id=prof_id,
+                    weekday=lesson.weekday,
+                    lesson_number=lesson.lesson_number,
+                    subject=lesson.subject,
+                    rooms=lesson.rooms,
+                    week_mark=lesson.week_mark,
+                )
+                session.add(pl)
+
+        await session.flush()
+        logger.info(f"✅ Расписание преподавателей успешно обновлено. Обработано {len(added_records)} записей.")
+
+    except Exception as e:
+        logger.error(f"Ошибка при перестроении расписания преподавателей: {e}")
+        await session.rollback()
+        raise
+
+
 async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
     """
-    Основная функция синхронизации расписания.
+    Полная синхронизация расписаний групп и преподавателей.
 
-    Логика работы:
-    1. Создаём клиент TimetableClient для API.
-    2. Получаем список всех групп.
-    3. Для каждой группы:
-        - проверяем и создаём факультет и группу в базе
-        - получаем расписание с API
-        - пропускаем группы без расписания (message "not found")
-        - парсим пары в список словарей
-        - обновляем записи пар через upsert_lessons_for_group
-        - коммитим изменения и ведём лог.
-    4. Закрываем клиент API.
-    5. Логируем количество обработанных групп.
-
-    Параметры:
-        limit_groups (int, optional): ограничение числа групп для обработки (для тестов). None — все.
-        type_idx (int, optional): тип расписания для запроса (по умолчанию 0).
-
-    Возвращает:
-        None
+    1. Получает все группы из API.
+    2. Для каждой группы:
+       - создаёт факультет и группу, если их нет.
+       - получает и парсит расписание.
+       - обновляет таблицу Lesson.
+    3. После обработки всех групп перестраивает расписание преподавателей.
+    4. Удаляет неактуальные группы и преподавателей.
+    5. Обновляет клавиатуры.
     """
 
+    global CACHE_UPDATE_ENABLED
+
     client = TimetableClient()
-    async with AsyncSessionLocal() as session:
-        groups_json = await client.fetch_groups()
-        groups = groups_json.get("groups", []) if isinstance(groups_json, dict) else groups_json
 
-        if not groups:
-            logger.warning("Список групп пуст")
-            await client.close()
-            return
+    try:
+        async with AsyncSessionLocal() as session:
+            groups_json = await client.fetch_groups()
+            groups = groups_json.get("groups", []) if isinstance(groups_json, dict) else groups_json
 
-        valid_groups: Set[str] = set()
+            if not groups:
+                logger.warning("Список групп пуст.")
+                return
 
-        for idx, g in enumerate(groups):
-            if limit_groups and idx >= limit_groups:
-                break
+            valid_groups: Set[str] = set()
 
-            group_name = g.get("groupName")
-            faculty_name = g.get("facultyName")
-            if not group_name:
-                continue
+            for idx, g in enumerate(groups):
+                if limit_groups and idx >= limit_groups:
+                    break
+
+                group_name = g.get("groupName")
+                faculty_name = g.get("facultyName")
+                if not group_name:
+                    continue
+
+                try:
+                    group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
+
+                    tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
+                    if isinstance(tt_json, dict) and tt_json.get("message"):
+                        logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
+                        continue
+
+                    records = extract_lessons_from_timetable_json(group_name, tt_json)
+                    if not records:
+                        logger.info("Для группы %s нет расписания", group_name)
+                        continue
+
+                    inserted = await upsert_lessons_for_group(session, group_obj, records)
+                    valid_groups.add(group_name)
+
+                    await session.commit()
+                    logger.info("Обработана группа %s → %d пар", group_name, inserted)
+
+                except Exception as e:
+                    await session.rollback()
+                    logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
+                    continue
+
+            # Удаляем неактуальные группы с обработкой исключений
+            deleted_groups = 0
             try:
-                group_obj = await ensure_faculty_and_group(session, faculty_name, group_name)
+                q = await session.execute(select(Group))
+                existing_groups = q.scalars().all()
+                for grp in existing_groups:
+                    if grp.group_name not in valid_groups:
+                        deleted_groups += 1
+                        await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
+                        await session.delete(grp)
+                        logger.info("Удалена группа без расписания: %s", grp.group_name)
 
-                tt_json = await client.fetch_timetable_for_group(group_name, type_idx=type_idx)
-
-                if isinstance(tt_json, dict) and tt_json.get("message"):
-                    logger.info("Нет расписания для %s: %s", group_name, tt_json.get("message"))
-                    continue
-
-                records = extract_lessons_from_timetable_json(group_name, tt_json)
-                if not records:
-                    logger.info("Для группы %s нет расписания", group_name)
-                    continue
-
-                inserted = await upsert_lessons_for_group(session, group_obj, records)
                 await session.commit()
-
-                valid_groups.add(group_name)
-                logger.info("Обработана группа %s → вставлено %d пар", group_name, inserted)
 
             except Exception as e:
                 await session.rollback()
-                raise RuntimeError(
-                    f"Факультет: {faculty_name}, Группа: {group_name}, Ошибка: {str(e)}"
-                )
+                logger.error("Ошибка при удалении групп: %s", str(e))
 
-        deleted = 0
-        q = await session.execute(select(Group))
-        existing_groups = q.scalars().all()
-        for grp in existing_groups:
-            if grp.group_name not in valid_groups:
-                deleted += 1
-                logger.info("Удаление группы без расписания: %s", grp.group_name)
-                await session.execute(delete(Lesson).where(Lesson.group_id == grp.id))
-                await session.delete(grp)
+            async with _cache_lock:
+                CACHE_UPDATE_ENABLED = False
 
-        await session.commit()
+            try:
+                await upsert_lessons_for_professors(session)
+                await session.commit()
+
+                deleted_profs = 0
+                try:
+                    q = await session.execute(select(Professor))
+                    existing_profs = q.scalars().all()
+                    for prof in existing_profs:
+                        res = await session.execute(
+                            select(ProfessorLesson).where(ProfessorLesson.professor_id == prof.id)
+                        )
+                        lessons_for_prof = res.scalars().all()
+                        if not lessons_for_prof:
+                            deleted_profs += 1
+                            await session.delete(prof)
+                            logger.info("Удалён преподаватель без пар: %s", prof.name)
+
+                    await session.commit()
+
+                except Exception as e:
+                    await session.rollback()
+                    logger.error("Ошибка при удалении преподавателей: %s", str(e))
+
+            except Exception as e:
+                await session.rollback()
+                logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
+
+            finally:
+                async with _cache_lock:
+                    CACHE_UPDATE_ENABLED = True
+
+    except Exception as e:
+        logger.error("Критическая ошибка в синхронизации: %s", str(e))
+        raise
+
+    finally:
         await client.close()
 
-    logger.info("Полная синхронизация завершена. Групп с расписанием: %d. Удалено групп: %d",
-                len(valid_groups), deleted)
+        await get_cached_professors()
+
+    logger.info("✅ Полная синхронизация завершена.")
+    logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
+    logger.info("Преподавателей: %d, удалено: %d", len(existing_profs) - deleted_profs, deleted_profs)
 
     await refresh_all_keyboards()
 
@@ -322,12 +444,13 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
         await client.close()
 
         total = len(valid_groups)
-        logger.info("Синхронизация для %s завершена. Групп обработано: %d",
+        logger.info("✅ Синхронизация для %s завершена. Групп обработано: %d",
                     faculty_name, total)
 
         await refresh_all_keyboards()
 
         return total
+
 
 async def run_full_sync_for_group(group_name: str, type_idx: int = 0):
     """
@@ -392,6 +515,7 @@ async def run_full_sync_for_group(group_name: str, type_idx: int = 0):
         finally:
             await client.close()
 
+
 async def get_schedule_for_group(group_name: str):
     """
     Получение расписания группы из базы данных.
@@ -436,4 +560,28 @@ async def get_schedule_for_group(group_name: str):
             .order_by(week_mark_order)
         )
         lessons = q.scalars().all()
+
         return lessons
+
+
+async def get_lesson_for_professor(professor_name: str):
+    """Получить все пары преподавателя по имени"""
+    async with AsyncSessionLocal() as session:
+        query = await session.execute(
+            select(Professor).where(Professor.name.ilike(f"%{professor_name}%"))
+        )
+        professors = query.scalars().all()
+
+        if not professors or len(professors) > 1:
+            return None, professors
+
+        professor = professors[0]
+
+        query = await session.execute(
+            select(ProfessorLesson)
+            .where(ProfessorLesson.professor_id == professor.id)
+            .order_by(ProfessorLesson.weekday, ProfessorLesson.lesson_number)
+        )
+        lessons = query.scalars().all()
+
+        return professor, lessons

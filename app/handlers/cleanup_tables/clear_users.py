@@ -10,7 +10,8 @@ from app.database.db import AsyncSessionLocal
 from app.database.models import User
 from app.config import settings
 from app.filters.is_admin import IsAdminFilter
-from app.state.states import DeleteUsersBDStates
+from app.keyboards.admin_kb import get_admin_kb
+from app.state.states import ClearUsersTableStates
 from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
@@ -39,11 +40,11 @@ async def cancel_delete_users(callback: CallbackQuery, state: FSMContext):
     """
 
     await state.clear()
-    await callback.message.edit_text("Удаление БД с пользователями отменено")
+    await callback.message.edit_text("❌ Удаление БД с пользователями отменено")
     await callback.answer()
 
     await asyncio.sleep(1)
-    await callback.message.delete()
+    await callback.message.edit_text(text="Админ панель:", reply_markup=get_admin_kb())
 
 
 @router.callback_query(F.data=="clear_user_db", IsAdminFilter())
@@ -53,7 +54,7 @@ async def clear_user_db(callback: CallbackQuery, state: FSMContext):
 
     Функция вызывается при нажатии на кнопку «Очистить базу пользователей».
     Отправляет администратору предупреждение с запросом пароля подтверждения
-    и переводит FSM в состояние ожидания ввода пароля (`DeleteUsersBDStates.confirm_delete`).
+    и переводит FSM в состояние ожидания ввода пароля (`ClearUsersTableStates.confirm_delete`).
 
     Параметры:
         callback (CallbackQuery): Объект колбэка (нажатие inline-кнопки).
@@ -69,11 +70,11 @@ async def clear_user_db(callback: CallbackQuery, state: FSMContext):
         ]))
 
     await callback.answer()
-    await state.set_state(DeleteUsersBDStates.confirm_delete)
+    await state.set_state(ClearUsersTableStates.confirm_delete)
     await state.update_data(confirm_message_id=callback.message.message_id)
 
 
-@router.message(StateFilter(DeleteUsersBDStates.confirm_delete), IsAdminFilter())
+@router.message(StateFilter(ClearUsersTableStates.confirm_delete), IsAdminFilter())
 async def confirm_delete_user(message: Message, state: FSMContext):
     """
     Завершает процедуру удаления пользователей из базы данных после подтверждения паролем.
@@ -111,7 +112,7 @@ async def confirm_delete_user(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением: {e}")
+            logger.warning(f"Не удалось удалить сообщение с подтверждением очистки БД: {e}")
 
     password = message.text
     try:
