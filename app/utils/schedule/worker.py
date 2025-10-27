@@ -356,7 +356,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                 CACHE_UPDATE_ENABLED = True
 
     logger.info("✅ Полная синхронизация завершена.")
-    logger.info("Групп с расписанием: %d (удалено: %d)", len(valid_groups), deleted_groups)
+    logger.info("Групп с расписанием: %d, удалено: %d", len(valid_groups), deleted_groups)
     logger.info("Преподавателей: %d, удалено: %d", len(existing_profs) - deleted_profs, deleted_profs)
 
     await refresh_all_keyboards()
