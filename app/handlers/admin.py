@@ -14,8 +14,7 @@ from app.state.states import AddAdminStates
 from app.database.db import AsyncSessionLocal
 from app.utils.admins.admin_list import add_admin_to_list, remove_admin_from_list, get_admin_username
 from app.utils.custom_logging.BufferedLogHandler import global_buffer_handler
-from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message, \
-    safe_delete_message_by_id
+from app.utils.messages.safe_delete_messages import safe_delete_message, safe_delete_callback_message
 import app.utils.admins.admin_list as admin_list
 
 router = Router()
@@ -116,6 +115,7 @@ async def add_admin(callback: CallbackQuery, state: FSMContext):
         state (FSMContext): Контекст состояния FSM.
     """
 
+    await state.clear()
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -164,22 +164,30 @@ async def reading_id(message: Message, state: FSMContext):
         message_id_to_delete = data.get("message_id")
         if message_id_to_delete:
             try:
-                await message.bot.delete_message(chat_id=message.chat.id, message_id=0)
+                await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
+                logger.debug(f"⚠️ Не удалось удалить сообщение отправленное add_admin: {e}")
 
         try:
             user_id = int(message.text)
         except ValueError:
-            await message.answer("❌ Неверный формат ID. Введите числовой ID.")
-            logger.info(f"⚠️ Введён некорректный ID: '{message.text}'")
+            # ❌ НЕВЕРНЫЙ ФОРМАТ ID - ПРОСИМ ПОВТОРИТЬ ВВОД
+            error_msg = await message.answer("❌ Неверный формат ID. Введите числовой ID.")
+            logger.debug(f"⚠️ Введён некорректный ID: '{message.text}'")
 
             await asyncio.sleep(1)
-            await message.answer(text="Повторно введите ID пользователя для назначения администратором.\n"
-                                 "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
-                                 reply_markup=cancel_kb)
-            await state.set_state(AddAdminStates.waiting_id)
-            await state.update_data(message_id=message.message_id)
+
+            new_instruction_msg = await message.answer(
+                text="Повторно введите ID пользователя для назначения администратором.\n"
+                     "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
+                reply_markup=cancel_kb
+            )
+
+            await state.update_data(message_id=new_instruction_msg.message_id)
+
+            await asyncio.sleep(1)
+            await safe_delete_message(error_msg)
+
             return
 
         if user_id == message.from_user.id:
@@ -190,15 +198,22 @@ async def reading_id(message: Message, state: FSMContext):
         async with AsyncSessionLocal() as session:
             user = await session.get(User, user_id)
             if not user:
-                await message.answer(f"❌ Пользователь с ID {user_id} не найден.")
+                error_msg = await message.answer(f"❌ Пользователь с ID {user_id} не найден.")
                 logger.info(f"⚠️ Попытка назначить администратором несуществующего пользователя {user_id}.")
 
                 await asyncio.sleep(1)
-                await message.answer(text="Повторно введите ID пользователя для назначения администратором.\n"
-                                          "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
-                                     reply_markup=cancel_kb)
-                await state.set_state(AddAdminStates.waiting_id)
-                await state.update_data(message_id=message.message_id)
+
+                new_instruction_msg = await message.answer(
+                    text="Повторно введите ID пользователя для назначения администратором.\n"
+                         "Для того чтобы узнать id можно воспользоваться @username_to_id_bot",
+                    reply_markup=cancel_kb
+                )
+
+                await state.update_data(message_id=new_instruction_msg.message_id)
+
+                await asyncio.sleep(1)
+                await safe_delete_message(error_msg)
+
                 return
 
             if user.role == 1:
@@ -220,14 +235,14 @@ async def reading_id(message: Message, state: FSMContext):
 
             await add_admin_to_list(user_id)
 
+            await state.clear()
+
     except Exception as e:
         await message.answer("❌ Ошибка при назначении администратора.")
         logger.error(
             f"❌ Ошибка при назначении администратора в reading_id. "
             f"Введённый ID: '{message.text}': {e}"
         )
-
-    finally:
         await state.clear()
 
 

@@ -12,7 +12,6 @@ from app.config import settings
 from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
 from app.state.states import ClearUsersTableStates
-from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -61,7 +60,6 @@ async def clear_user_db(callback: CallbackQuery, state: FSMContext):
         state (FSMContext): Контекст FSM для сохранения текущего состояния.
 
     """
-
 
     await callback.message.edit_text(
         text="⚠️ Эта операция удалит всех пользователей, кроме администраторов.\nВведите пароль для подтверждения:",
@@ -112,26 +110,25 @@ async def confirm_delete_user(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение с подтверждением очистки БД: {e}")
+            logger.debug(f"Не удалось удалить сообщение с подтверждением очистки БД: {e}")
 
-    password = message.text
     try:
         await message.delete()
     except Exception as e:
-        logger.warning(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
+        logger.debug(f"⚠️ Не удалось удалить сообщение пользователя с паролем: {e}")
 
-    if password != settings.ADMIN_PASSWORD:
+    if message.text != settings.ADMIN_PASSWORD:
         logger.warning("❌ Попытка очистки базы с неверным паролем.")
 
         try:
             msg = await message.answer("❌ Неверный пароль")
 
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(1)
 
             try:
                 await msg.delete()
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение 'Неверный пароль': {e}")
+                logger.debug(f"⚠️ Не удалось удалить сообщение 'Неверный пароль': {e}")
 
         except Exception as e:
             logger.error(f"❌ Ошибка при отправке сообщения 'Неверный пароль': {e}")
@@ -150,7 +147,6 @@ async def confirm_delete_user(message: Message, state: FSMContext):
             txt = f"✅ Из базы удалено {deleted_count} пользователей (остались только админы)."
             await message.answer(txt)
             logger.info(txt)
-            await send_chat_info_log(txt)
 
         except Exception as e:
             await session.rollback()

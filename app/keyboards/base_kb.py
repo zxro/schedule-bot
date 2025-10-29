@@ -62,8 +62,10 @@ abbr_faculty = {
     "SPORT": "Факультет физической культуры",
 }
 
+
 faculty_keyboard_base = None
 groups_keyboards_base = None
+
 
 async def refresh_base_keyboards():
     """
@@ -77,9 +79,11 @@ async def refresh_base_keyboards():
     Возвращает:
         tuple[InlineKeyboardMarkup | None, dict[str, InlineKeyboardMarkup] | None]
     """
+
     global faculty_keyboard_base, groups_keyboards_base
     faculty_keyboard_base = await create_faculty_keyboard()
     groups_keyboards_base = await create_courses_keyboards()
+
 
 def build_faculty_keyboards(faculty_groups: dict[str, list[str]]) -> dict[str, InlineKeyboardMarkup]:
     """
@@ -91,6 +95,7 @@ def build_faculty_keyboards(faculty_groups: dict[str, list[str]]) -> dict[str, I
     Возвращает:
         dict[str, InlineKeyboardMarkup] — {faculty_name: InlineKeyboardMarkup}
     """
+
     keyboards: dict[str, InlineKeyboardMarkup] = {}
 
     for faculty_name, group_names in faculty_groups.items():
@@ -105,6 +110,7 @@ def build_faculty_keyboards(faculty_groups: dict[str, list[str]]) -> dict[str, I
 
     return keyboards
 
+
 # ================= ЗАГРУЗКА ДАННЫХ =================
 
 async def load_groups_data():
@@ -115,6 +121,7 @@ async def load_groups_data():
         dict: JSON-ответ от сервера (обычно содержит ключ 'groups'), если успешно.
         None: при ошибке (логируется).
     """
+
     client = TimetableClient()
     try:
         data = await client.fetch_groups()
@@ -151,6 +158,7 @@ async def create_faculty_keyboard():
             for f in faculties
         ]
     )
+
 
 # ================= ГРУППЫ =================
 

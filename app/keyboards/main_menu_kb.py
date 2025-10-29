@@ -7,6 +7,7 @@ async def get_main_menu_kb(user_id: int):
     """
     Создает клавиатуру главного меню в зависимости от статуса регистрации и роли пользователя
     """
+
     async with AsyncSessionLocal() as session:
         q = await session.execute(select(User).where(User.id == user_id))
         user = q.scalars().first()

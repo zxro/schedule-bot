@@ -2,11 +2,13 @@ import logging
 
 from sqlalchemy import select
 
-from app.bot import bot
+from app.bot.bot import bot
 from app.database.db import AsyncSessionLocal
 from app.database.models import User
 
+
 logger = logging.getLogger(__name__)
+
 
 LIST_ADMINS = {}  # словарь: {id: "@username"}
 
@@ -37,7 +39,7 @@ async def create_first_admin(admin_id: int):
 
         except Exception as e:
             await session.rollback()
-            logger.error(f"❌ Ошибка вставки временных данных: {e}")
+            logger.error(f"❌ Ошибка при добавлении администратора: {e}")
 
 
 async def check_admins_start():
@@ -48,9 +50,8 @@ async def check_admins_start():
     1. Если список администраторов (`LIST_ADMINS`) не пуст — выход.
     2. Если админов нет:
        - запрашивает ID первого администратора через консольный ввод;
-       - создаёт временные записи (см. `create_first_admin`);
-       - обновляет список администраторов в памяти (`refresh_admin_list`);
-       - удаляет тестовые данные (`remove_test_data`).
+       - создаёт первого админа;
+       - обновляет список администраторов в памяти;
 
     Используется при первом запуске бота или после очистки базы данных.
 
@@ -95,7 +96,7 @@ async def get_username_from_tg(user_id: int):
         user = await bot.get_chat(user_id)
         return f"@{user.username}" if user.username else None
     except Exception as e:
-        logger.warning(f"⚠️ Не удалось получить username для пользователя {user_id}: {e}")
+        logger.debug(f"⚠️ Не удалось получить username для пользователя {user_id}: {e}")
         return None
 
 
@@ -131,7 +132,7 @@ async def refresh_admin_list():
                 username = await get_username_from_tg(user.id)
                 LIST_ADMINS[user.id] = username
 
-            logger.info(f"✅ Список администраторов обновлен: {len(LIST_ADMINS)} админов")
+            logger.info(f"✅ Список администраторов обновлен, админ(ов): {len(LIST_ADMINS)}")
 
     except Exception as e:
         logger.error(f"❌ Ошибка при заполнении списка администраторов: {e}")

@@ -162,7 +162,7 @@ def _format_common_lesson_data(l):
     """
 
     start, end = _get_lesson_time(lesson_number=l.lesson_number)
-    time_str = f"⏳ {start} \\- {end}"
+    time_str = f"{start} \\- {end}"
 
     lesson_num = lesson_num_emoji.get(l.lesson_number, "❓")
 
@@ -172,7 +172,7 @@ def _format_common_lesson_data(l):
         rooms_text = url_pattern.sub(lambda m: f"[нажмите для подключения]({m.group(0)})", rooms_text)
     else:
         rooms_text = escape_md_v2(rooms_text)
-    room = f"📍{rooms_text}"
+    room = f"{rooms_text}"
 
     subject = escape_md_v2(l.subject or "Предмет не указан")
 
@@ -205,7 +205,7 @@ def format_schedule_students(lessons, week: str, header_prefix: str = "📅 Ра
                     l.professors or "Преподаватель не указан")
         professors = escape_md_v2(professors)
 
-        return f"  {lesson_num} {marker} {subject}\n  👨‍🏫 {professors}\n  {room}\n  {time_str}"
+        return f"  {lesson_num} {marker} *{subject}*\n  {professors}\n  {room}\n  {time_str}"
 
     lessons_by_day = _create_lessons_by_day(filtered_lessons)
     header = _get_header(header_prefix, week)
@@ -233,8 +233,8 @@ def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Р�
         marker, lesson_num, subject, room, time_str = _format_common_lesson_data(l)
         urls = url_pattern.findall(room)
         if urls:
-            room = "📍Онлайн"
-        return f"  {lesson_num} {marker} {subject}\n  {room}\n  {time_str}"
+            room = "Онлайн"
+        return f"  {lesson_num} {marker} *{subject}*\n  {room}\n  {time_str}"
 
     lessons_by_day = _create_lessons_by_day(filtered_lessons)
     header = _get_header(header_prefix, week)

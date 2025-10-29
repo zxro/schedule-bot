@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 base_dir = Path(__file__).resolve().parent.parent
 dotenv_path = base_dir / "config" / ".env"
 if not dotenv_path.exists():
-    logger.error(f".env the file was not found on the way: {dotenv_path}")
+    logger.critical(f".env the file was not found on the way: {dotenv_path}")
     sys.exit(1)
 
 load_dotenv(dotenv_path=dotenv_path)
@@ -62,5 +62,5 @@ class Settings(BaseSettings):
 try:
     settings = Settings()
 except Exception as e:
-    logger.error(f"❌ Ошибка загрузки настроек: {e}")
+    logger.critical(f"❌ Ошибка загрузки настроек: {e}")
     sys.exit(1)

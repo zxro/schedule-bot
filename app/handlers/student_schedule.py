@@ -73,7 +73,7 @@ async def get_schedule_start(callback: CallbackQuery, state: FSMContext):
     - Устанавливает состояние choice_faculty.
     """
 
-    await callback.message.edit_text("Выберите факультет:", reply_markup=find_kb.faculty_keyboard_find)
+    await callback.message.edit_text(text="Выберите факультет:", reply_markup=find_kb.faculty_keyboard_find)
     await state.set_state(ShowScheduleStates.choice_faculty)
     await callback.answer()
 
@@ -131,7 +131,7 @@ async def get_schedule_today(message: Message):
                 await message.answer(text, parse_mode="MarkdownV2", disable_web_page_preview=True)
 
     except Exception as e:
-        logger.error(f"⚠️ Ошибка при выводе расписания на сегодня: {e}")
+        logger.error(f"⚠️ Ошибка при выводе расписания на сегодня для группы {group.group_name}: {e}")
         await message.answer("⚠️ Ошибка при получении расписания.")
 
 
@@ -183,8 +183,9 @@ async def weekly_schedule(callback: CallbackQuery):
             await callback.answer()
 
     except Exception as e:
-        logger.exception(f"⚠️ Ошибка при обработке weekly_schedule: {e}")
+        logger.error(f"⚠️ Ошибка при обработке weekly_schedule: {e}")
         await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
+        await callback.answer()
 
 
 @router.callback_query(F.data == "next_week_schedule")
@@ -236,8 +237,9 @@ async def next_week_schedule(callback: CallbackQuery):
             await callback.answer()
 
     except Exception as e:
-        logger.exception(f"⚠️ Ошибка при обработке next_week_schedule: {e}")
+        logger.error(f"⚠️ Ошибка при обработке next_week_schedule: {e}")
         await callback.message.answer("⚠️ Произошла ошибка при получении расписания.")
+        await callback.answer()
 
 
 @router.callback_query(StateFilter(ShowScheduleStates.choice_faculty), F.data.startswith("faculty:"))
@@ -256,7 +258,8 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
     if not groups_kb:
         await callback.message.edit_text("⚠️ Для этого факультета нет групп.")
         return
-    await callback.message.edit_text(f"Выберите группу факультета {faculty_name}:", reply_markup=groups_kb)
+    await callback.message.edit_text(text=f"Выберите группу факультета {faculty_name}:", reply_markup=groups_kb)
+    await callback.answer()
     await state.set_state(ShowScheduleStates.choice_group)
 
 
@@ -274,8 +277,11 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
     await state.update_data(group_name=group_name)
     await state.set_state(ShowScheduleStates.choice_week)
 
-    await callback.message.edit_text(f"Выберите тип расписания:\n"
-                                     f"Сейчас неделя {week_mark.WEEK_MARK_STICKER}", reply_markup=get_choice_week_type_kb())
+    await callback.message.edit_text(
+        text=f"Выберите тип расписания:\nСейчас неделя {week_mark.WEEK_MARK_STICKER}",
+        reply_markup=get_choice_week_type_kb()
+    )
+    await callback.answer()
 
 
 @router.callback_query(StateFilter(ShowScheduleStates.choice_week), F.data.startswith("week:"))
@@ -316,8 +322,9 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
             await callback.message.answer(msg.strip(), parse_mode="MarkdownV2", disable_web_page_preview=True)
 
     except Exception as e:
-        logger.exception(f"⚠️ Ошибка при выводе расписания для {group_name}: {e}")
+        logger.error(f"⚠️ Ошибка при выводе расписания для {group_name}: {e}")
         await callback.message.edit_text(
-            f"⚠️ Произошла ошибка при выводе расписания для *{escape_md_v2(group_name)}*.",
+            text=f"⚠️ Произошла ошибка при выводе расписания для *{escape_md_v2(group_name)}*.",
             parse_mode="MarkdownV2"
         )
+        await callback.answer()

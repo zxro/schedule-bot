@@ -1,6 +1,4 @@
 """
-Модуль safe_delete.py
-
 Предоставляет безопасные функции для удаления сообщений в Telegram с использованием Aiogram.
 Поддерживаются объекты Message, CallbackQuery, а также удаление по chat_id и message_id.
 Все ошибки TelegramBadRequest обрабатываются и логируются корректно.
@@ -11,7 +9,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 from aiogram import Bot
 
-from app.bot import bot
+from app.bot.bot import bot
 
 logger = logging.getLogger(__name__)
 

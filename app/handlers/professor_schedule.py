@@ -9,6 +9,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from app.database.models import Professor
 from app.keyboards.schedule_kb import get_other_schedules_kb
 from app.state.states import ProfessorScheduleStates
+from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils.schedule.search_professors import search_professors_fuzzy
@@ -85,7 +86,10 @@ async def format_and_send_schedule(target, professor_name: str, professor, filte
 
     len_messages = len(messages)
     if len_messages > 1:
-        logger.warning(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
+        try:
+            await send_chat_info_log(f"Расписание преподавателя {professor_name} не уместилось в одно сообщение. Проверить!!!")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось отправить сообщение в Telegram: {e}")
 
     for i, msg_text in enumerate(messages):
         is_last = (i == len_messages - 1)
@@ -304,7 +308,7 @@ async def waiting_name(message: Message, state: FSMContext):
         try:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=message_id_to_delete)
         except Exception as e:
-            logger.warning(f"⚠️ Не удалось удалить сообщение c именем преподавателя: {e}")
+            logger.debug(f"⚠️ Не удалось удалить сообщение c именем преподавателя: {e}")
 
     name = message.text.strip()
 
@@ -384,7 +388,11 @@ async def handle_professor_today(callback: CallbackQuery):
             await callback.answer()
             return
 
-        await callback.message.delete()
+        try:
+            await callback.message.delete()
+        except Exception as delete_error:
+            logger.debug(f"Не удалось удалить сообщение: {delete_error}")
+
         schedule_type_kb = get_schedule_professors_kb(professor_name)
 
         if not filtered_lessons:

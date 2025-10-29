@@ -7,8 +7,10 @@ from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 
 logger = logging.getLogger(__name__)
 
+
 WEEK_MARK_STICKER = None
 WEEK_MARK_TXT = None
+
 
 def get_monday(date):
     """Находит понедельник для заданной даты"""

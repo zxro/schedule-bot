@@ -17,6 +17,7 @@ async def init_db(eng: AsyncEngine):
     2. Сравниваем с таблицами из моделей.
     3. Если есть отсутствующие таблицы — создаём их через create_all(tables=...)
     """
+
     try:
         async with eng.begin() as conn:
             existing_tables = await conn.run_sync(
@@ -33,7 +34,10 @@ async def init_db(eng: AsyncEngine):
                 tables_to_create = [models.Base.metadata.tables[name] for name in missing_tables]
                 await conn.run_sync(lambda sync_conn: models.Base.metadata.create_all(sync_conn, tables=tables_to_create))
             logger.info(f"✅ Таблицы {missing_tables} успешно созданы.")
-            await send_chat_info_log(f"✅ Таблицы {missing_tables} успешно созданы.")
+            try:
+                await send_chat_info_log(f"✅ Таблицы {missing_tables} успешно созданы.")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить уведомление в Telegram: {e}")
         else:
             logger.info("✅ Все таблицы существуют.")
 
