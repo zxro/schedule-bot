@@ -19,6 +19,7 @@ import logging
 
 from app.filters.is_admin import IsAdminFilter
 from app.keyboards.admin_kb import get_admin_kb
+from app.utils.messages.safe_delete_messages import safe_delete_message
 from app.utils.schedule.worker import run_full_sync_for_group, run_full_sync, run_full_sync_for_faculty
 from app.keyboards.base_kb import abbr_faculty
 from app.keyboards.sync_kb import get_type_sync_kb
@@ -104,6 +105,8 @@ async def confirm_full_sync(message: Message, state: FSMContext):
             await message.bot.delete_message(chat_id=message.chat.id, message_id=confirm_message_id)
         except Exception as e:
             logger.debug(f"Не удалось удалить сообщение с подтверждением синхронизации: {e}")
+
+    await safe_delete_message(message)
 
     if message.text.strip().lower() != "да":
         await message.answer("Синхронизация для всего университета отменена.")
