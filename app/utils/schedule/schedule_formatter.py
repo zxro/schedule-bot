@@ -217,6 +217,8 @@ def format_schedule_students(lessons, week: str, header_prefix: str = "📅 Ра
                     for i, lesson_data in enumerate(current_lessons):
                         lesson_block += lesson_data
                         if i < len(current_lessons) - 1:
+                            lesson_block += "\n\n"
+                        else:
                             lesson_block += "\n"
 
                     lesson_blocks.append(lesson_block)
@@ -229,7 +231,7 @@ def format_schedule_students(lessons, week: str, header_prefix: str = "📅 Ра
             # Форматируем отдельную пару
             lesson_text = f"{marker} *{subject}*\n"
             lesson_text += f"       {professors}\n"
-            lesson_text += f"       {room}\n"
+            lesson_text += f"       {room}"
             current_lessons.append(lesson_text)
 
         # Добавляем последнюю группу
@@ -238,6 +240,8 @@ def format_schedule_students(lessons, week: str, header_prefix: str = "📅 Ра
             for i, lesson_data in enumerate(current_lessons):
                 lesson_block += lesson_data
                 if i < len(current_lessons) - 1:
+                    lesson_block += "\n\n"
+                else:
                     lesson_block += "\n"
 
             lesson_blocks.append(lesson_block)
@@ -291,6 +295,8 @@ def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Р�
                     for i, lesson_data in enumerate(current_lessons):
                         lesson_block += lesson_data
                         if i < len(current_lessons) - 1:
+                            lesson_block += "\n\n"
+                        else:
                             lesson_block += "\n"
 
                     lesson_blocks.append(lesson_block)
@@ -302,7 +308,7 @@ def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Р�
 
             # Форматируем отдельную пару
             lesson_text = f"{marker} *{subject}*\n"
-            lesson_text += f"       {room}\n"
+            lesson_text += f"       {room}"
             current_lessons.append(lesson_text)
 
         # Добавляем последнюю группу
@@ -311,6 +317,8 @@ def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Р�
             for i, lesson_data in enumerate(current_lessons):
                 lesson_block += lesson_data
                 if i < len(current_lessons) - 1:
+                    lesson_block += "\n\n"
+                else:
                     lesson_block += "\n"
 
             lesson_blocks.append(lesson_block)
