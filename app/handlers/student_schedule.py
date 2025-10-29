@@ -321,6 +321,8 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
         for msg in messages[1:]:
             await callback.message.answer(msg.strip(), parse_mode="MarkdownV2", disable_web_page_preview=True)
 
+        await callback.answer()
+
     except Exception as e:
         logger.error(f"⚠️ Ошибка при выводе расписания для {group_name}: {e}")
         await callback.message.edit_text(
