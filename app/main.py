@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from app.bot.bot import dp, bot
+from app.bot.bot import dp
 from app.bot.on_shutdown import on_shutdown
 from app.bot.on_startup import on_startup
 from app.bot.safe_polling import safe_polling
