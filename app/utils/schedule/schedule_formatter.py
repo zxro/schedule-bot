@@ -3,11 +3,6 @@ from collections import defaultdict
 
 MAX_MESSAGE_LENGTH = 4000
 
-lesson_num_emoji = {
-    0: "1️⃣", 1: "2️⃣", 2: "3️⃣",
-    3: "4️⃣", 4: "5️⃣", 5: "6️⃣", 6: "7️⃣"
-}
-
 weekday_names = {
     1: "Понедельник",
     2: "Вторник",
@@ -98,13 +93,13 @@ def _create_lessons_by_day(filtered_lessons):
     return lessons_by_day
 
 
-def _build_schedule_messages(lessons_by_day, format_lesson_func, header: str):
+def _build_schedule_messages(lessons_by_day, format_day_func, header: str):
     """
     Разбивает расписание на несколько сообщений (если текст слишком длинный).
 
     Параметры:
         lessons_by_day (dict): Сгруппированные по дням занятия.
-        format_lesson_func (Callable): Функция форматирования одной пары.
+        format_day_func (Callable): Функция форматирования одной пары.
         header (str): Заголовок расписания.
     Возвращает:
         list[str]: Список готовых сообщений.
@@ -113,8 +108,7 @@ def _build_schedule_messages(lessons_by_day, format_lesson_func, header: str):
     day_texts = []
     for wd in sorted(lessons_by_day.keys()):
         day_lessons = sorted(lessons_by_day[wd], key=lambda x: x.lesson_number or 0)
-        day_block = f"🗓 *{escape_md_v2(weekday_names[wd])}*:\n" + "\n\n".join(
-            format_lesson_func(l) for l in day_lessons) + "\n\n\n"
+        day_block = format_day_func(wd, day_lessons)
         day_texts.append(day_block)
 
     messages = []
@@ -144,9 +138,9 @@ def _get_header(header_prefix: str, week: str):
 
     header_prefix = f"*{escape_md_v2(header_prefix)}*"
     return {
-        "plus": f"{header_prefix} ➕\n\n",
-        "minus": f"{header_prefix} ➖\n\n",
-        "full": f"{header_prefix}\n\n"
+        "plus": f"{header_prefix} ➕\n\n\n",
+        "minus": f"{header_prefix} ➖\n\n\n",
+        "full": f"{header_prefix}\n\n\n"
     }.get(week, f"{header_prefix}\n\n")
 
 
@@ -161,10 +155,13 @@ def _format_common_lesson_data(l):
             (week_marker, emoji_номер, предмет, аудитория, время)
     """
 
+    lesson_number = l.lesson_number
+    if lesson_number is None:
+        lesson_number = 0
+    lesson_num = str(lesson_number + 1) if lesson_number is not None else "❓"
+
     start, end = _get_lesson_time(lesson_number=l.lesson_number)
     time_str = f"{start} \\- {end}"
-
-    lesson_num = lesson_num_emoji.get(l.lesson_number, "❓")
 
     rooms_text = l.rooms or "Место проведения не указано"
     urls = url_pattern.findall(rooms_text)
@@ -176,7 +173,6 @@ def _format_common_lesson_data(l):
 
     subject = escape_md_v2(l.subject or "Предмет не указан")
 
-    # убран - ⚪
     marker = {"plus": "➕", "minus": "➖", "every": ""}.get(l.week_mark or "every", "")
 
     return marker, lesson_num, subject, room, time_str
@@ -198,19 +194,60 @@ def format_schedule_students(lessons, week: str, header_prefix: str = "📅 Ра
     if not filtered_lessons:
         return []
 
-    def format_lesson(l):
-        marker, lesson_num, subject, room, time_str = _format_common_lesson_data(l)
+    def format_day(weekday, day_lessons):
+        """Форматирует один день расписания"""
+        day_header = f"🗓 *{escape_md_v2(weekday_names[weekday])}*\n\n"
 
-        professors = ", ".join(l.professors) if isinstance(l.professors, list) else (
-                    l.professors or "Преподаватель не указан")
-        professors = escape_md_v2(professors)
+        lesson_blocks = []
+        current_lesson_num = None
+        current_time_str = None
+        current_lessons = []
 
-        return f"  {lesson_num} {marker} *{subject}*\n  {professors}\n  {room}\n  {time_str}"
+        # Группируем пары по номеру и времени
+        for lesson in day_lessons:
+            marker, lesson_num, subject, room, time_str = _format_common_lesson_data(lesson)
+            professors = ", ".join(lesson.professors) if isinstance(lesson.professors, list) else (
+                    lesson.professors or "Преподаватель не указан")
+            professors = escape_md_v2(professors)
+
+            if lesson_num != current_lesson_num or time_str != current_time_str:
+                # Сохраняем предыдущую группу
+                if current_lessons:
+                    lesson_block = f"*{current_lesson_num}\\. {current_time_str}*\n"
+                    for i, lesson_data in enumerate(current_lessons):
+                        lesson_block += lesson_data
+                        if i < len(current_lessons) - 1:
+                            lesson_block += "\n"
+
+                    lesson_blocks.append(lesson_block)
+
+                # Начинаем новую группу
+                current_lesson_num = lesson_num
+                current_time_str = time_str
+                current_lessons = []
+
+            # Форматируем отдельную пару
+            lesson_text = f"{marker} *{subject}*\n"
+            lesson_text += f"       {professors}\n"
+            lesson_text += f"       {room}\n"
+            current_lessons.append(lesson_text)
+
+        # Добавляем последнюю группу
+        if current_lessons:
+            lesson_block = f"*{current_lesson_num}\\. {current_time_str}*\n"
+            for i, lesson_data in enumerate(current_lessons):
+                lesson_block += lesson_data
+                if i < len(current_lessons) - 1:
+                    lesson_block += "\n"
+
+            lesson_blocks.append(lesson_block)
+
+        return day_header + "\n".join(lesson_blocks) + "\n\n"
 
     lessons_by_day = _create_lessons_by_day(filtered_lessons)
     header = _get_header(header_prefix, week)
 
-    return _build_schedule_messages(lessons_by_day, format_lesson, header)
+    return _build_schedule_messages(lessons_by_day, format_day, header)
 
 
 def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Расписание преподавателя"):
@@ -229,14 +266,58 @@ def format_schedule_professor(lessons, week: str, header_prefix: str = "📅 Р�
     if not filtered_lessons:
         return []
 
-    def format_lesson(l):
-        marker, lesson_num, subject, room, time_str = _format_common_lesson_data(l)
-        urls = url_pattern.findall(room)
-        if urls:
-            room = "Онлайн"
-        return f"  {lesson_num} {marker} *{subject}*\n  {room}\n  {time_str}"
+    def format_day(weekday, day_lessons):
+        """Форматирует один день расписания преподавателя"""
+        day_header = f"🗓 *{escape_md_v2(weekday_names[weekday])}*\n\n"
+
+        lesson_blocks = []
+        current_lesson_num = None
+        current_time_str = None
+        current_lessons = []
+
+        # Группируем пары по номеру и времени
+        for lesson in day_lessons:
+            marker, lesson_num, subject, room, time_str = _format_common_lesson_data(lesson)
+
+            # Для онлайн-пар показываем "Онлайн"
+            urls = url_pattern.findall(room)
+            if urls:
+                room = "Онлайн"
+
+            if lesson_num != current_lesson_num or time_str != current_time_str:
+                # Сохраняем предыдущую группу
+                if current_lessons:
+                    lesson_block = f"*{current_lesson_num}\\. {current_time_str}*\n"
+                    for i, lesson_data in enumerate(current_lessons):
+                        lesson_block += lesson_data
+                        if i < len(current_lessons) - 1:
+                            lesson_block += "\n"
+
+                    lesson_blocks.append(lesson_block)
+
+                # Начинаем новую группу
+                current_lesson_num = lesson_num
+                current_time_str = time_str
+                current_lessons = []
+
+            # Форматируем отдельную пару
+            lesson_text = f"{marker} *{subject}*\n"
+            lesson_text += f"       {room}\n"
+            current_lessons.append(lesson_text)
+
+        # Добавляем последнюю группу
+        if current_lessons:
+            lesson_block = f"*{current_lesson_num}\\. {current_time_str}*\n"
+            for i, lesson_data in enumerate(current_lessons):
+                lesson_block += lesson_data
+                if i < len(current_lessons) - 1:
+                    lesson_block += "\n"
+
+            lesson_blocks.append(lesson_block)
+
+        return day_header + "\n".join(lesson_blocks) + "\n\n"
 
     lessons_by_day = _create_lessons_by_day(filtered_lessons)
     header = _get_header(header_prefix, week)
 
-    return _build_schedule_messages(lessons_by_day, format_lesson, header)
+    return _build_schedule_messages(lessons_by_day, format_day, header)
