@@ -335,7 +335,7 @@ async def waiting_name(message: Message, state: FSMContext):
 
     name = message.text.strip()
 
-    exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=80.0)
+    exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=85.0)
 
     if exact_professor:
         await show_professor_schedule_menu(message, exact_professor.name, state)
