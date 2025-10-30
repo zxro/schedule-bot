@@ -5,14 +5,14 @@ def get_admin_kb():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Синхронизировать расписание", callback_data="sync_schedule")
-            ],
-            [
                 InlineKeyboardButton(text="Просмотреть логи", callback_data="get_logs")
             ],
             [
                 InlineKeyboardButton(text="Добавить администратора", callback_data="add_admin"),
                 InlineKeyboardButton(text="Список администраторов", callback_data="list_of_admins")
+            ],
+            [
+                InlineKeyboardButton(text="Синхронизировать расписание", callback_data="sync_schedule")
             ],
             [
                 InlineKeyboardButton(text="Очистить БД пользователей", callback_data="clear_user_db")

@@ -13,6 +13,7 @@ from app.utils.custom_logging.TelegramLogHandler import send_chat_info_log
 from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
 from app.utils.schedule.schedule_formatter import format_schedule_professor, escape_md_v2
 from app.utils.schedule.search_professors import search_professors_fuzzy
+from app.utils.schedule.sync_lock import is_sync_running
 from app.utils.schedule.worker import get_lesson_for_professor
 from app.keyboards.schedule_kb import get_schedule_professors_kb
 import app.utils.week_mark.week_mark as week_mark
@@ -156,6 +157,13 @@ async def show_professor_schedule_menu(message: Message, professor_name: str, st
     Исключения:
         Exception: Если возникла ошибка при получении или отправке расписания.
     """
+
+    if is_sync_running():
+        await message.answer(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await state.clear()
+        return
     
     await state.update_data(professor_name=professor_name)
     schedule_type_kb = get_schedule_professors_kb(professor_name)
@@ -263,6 +271,14 @@ async def professor_schedule(callback: CallbackQuery, state: FSMContext):
         - Сохраняет ID текущего сообщения для последующего удаления.
     """
 
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        await state.clear()
+        return
+
     cancel_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Назад", callback_data="cancel")]
@@ -310,9 +326,16 @@ async def waiting_name(message: Message, state: FSMContext):
         except Exception as e:
             logger.debug(f"⚠️ Не удалось удалить сообщение c именем преподавателя: {e}")
 
+    if is_sync_running():
+        await message.answer(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await state.clear()
+        return
+
     name = message.text.strip()
 
-    exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=80.0)
+    exact_professor, similar_professors = await search_professors_fuzzy(query=name, limit=5, score_cutoff=85.0)
 
     if exact_professor:
         await show_professor_schedule_menu(message, exact_professor.name, state)
@@ -372,6 +395,12 @@ async def handle_professor_today(callback: CallbackQuery):
     Исключения:
         Exception: Если произошла ошибка при загрузке или форматировании расписания.
     """
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        return
     
     professor_name = ""
     try:
@@ -438,6 +467,13 @@ async def handle_professor_week(callback: CallbackQuery):
     Исключения:
         Exception: При ошибке загрузки или отображения расписания.
     """
+
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        return
 
     professor_name = ""
     try:

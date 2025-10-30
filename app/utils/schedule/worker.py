@@ -15,7 +15,7 @@
 - AsyncSessionLocal (app/db.py): фабрика асинхронных сессий SQLAlchemy.
 - SQLAlchemy модели: Faculty, Group, Lesson, TimeSlot, WeekMarkEnum.
 """
-import asyncio
+
 import logging
 from typing import List, Set
 
@@ -27,13 +27,7 @@ from app.database.models import Faculty, Group, Lesson, Professor, ProfessorLess
 from sqlalchemy import select, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.schedule.search_professors import update_professors_cache
-
 logger = logging.getLogger(__name__)
-
-
-CACHE_UPDATE_ENABLED = True
-_cache_lock = asyncio.Lock()
 
 
 async def ensure_faculty_and_group(session: AsyncSession, faculty_name: str, group_name: str):
@@ -243,10 +237,7 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
     5. Обновляет клавиатуры.
     """
 
-    global CACHE_UPDATE_ENABLED
-
     client = TimetableClient()
-    sync_successful = False
 
     try:
         async with AsyncSessionLocal() as session:
@@ -292,7 +283,6 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                     logger.error("Ошибка при обработке группы %s: %s", group_name, str(e))
                     continue
 
-            # Удаляем неактуальные группы с обработкой исключений
             deleted_groups = 0
             try:
                 q = await session.execute(select(Group))
@@ -338,22 +328,12 @@ async def run_full_sync(limit_groups: int = None, type_idx: int = 0):
                 await session.rollback()
                 logger.error("Ошибка при обновлении расписания преподавателей: %s", str(e))
 
-        sync_successful = True
     except Exception as e:
         logger.error("Ошибка в синхронизации: %s", str(e))
         raise
 
     finally:
         await client.close()
-
-        if sync_successful:
-            async with _cache_lock:
-                CACHE_UPDATE_ENABLED = False
-
-            await update_professors_cache()
-
-            async with _cache_lock:
-                CACHE_UPDATE_ENABLED = True
 
     logger.info("✅ Полная синхронизация завершена.")
     logger.info("Групп с расписанием: %d, удалено: %d", len(valid_groups), deleted_groups)
@@ -382,6 +362,7 @@ async def run_full_sync_for_faculty(faculty_name: str, limit_groups: int = None,
     Возвращает:
         int: Количество обработанных групп
     """
+
     client = TimetableClient()
     async with AsyncSessionLocal() as session:
         groups_json = await client.fetch_groups()

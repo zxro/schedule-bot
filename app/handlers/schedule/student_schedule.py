@@ -14,6 +14,7 @@ from aiogram.types import Message, CallbackQuery
 
 import app.utils.week_mark.week_mark as week_mark
 from app.utils.messages.safe_delete_messages import safe_delete_callback_message, safe_delete_message
+from app.utils.schedule.sync_lock import is_sync_running
 from app.utils.schedule.worker import get_schedule_for_group
 from app.keyboards.base_kb import abbr_faculty
 import app.keyboards.find_kb as find_kb
@@ -59,6 +60,12 @@ async def exit_other_schedules(callback: CallbackQuery):
 @router.message((F.text == "Другое расписание") | (F.text == "Расписания"))
 async def other_schedules(message: Message):
     """Просмотр 'другого' расписания"""
+    if is_sync_running():
+        await message.answer(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        return
+
     await safe_delete_message(message)
     await message.answer(text="Выберите расписание которое хотите посмотреть:", reply_markup=get_other_schedules_kb())
 
@@ -66,12 +73,19 @@ async def other_schedules(message: Message):
 @router.callback_query(F.data=="other_schedule")
 async def get_schedule_start(callback: CallbackQuery, state: FSMContext):
     """
-    Начало сценария просмотра расписания.
+    Начало сценария просмотра 'другого' расписания.
 
     Действия:
     - Отправляет клавиатуру факультетов.
     - Устанавливает состояние choice_faculty.
     """
+
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        return
 
     await callback.message.edit_text(text="Выберите факультет:", reply_markup=find_kb.faculty_keyboard_find)
     await state.set_state(ShowScheduleStates.choice_faculty)
@@ -86,6 +100,12 @@ async def get_schedule_today(message: Message):
     """
 
     await safe_delete_message(message)
+
+    if is_sync_running():
+        await message.answer(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        return
 
     user_id = message.from_user.id
     today = datetime.date.today()
@@ -138,13 +158,21 @@ async def get_schedule_today(message: Message):
 @router.callback_query(F.data == "weekly_schedule")
 async def weekly_schedule(callback: CallbackQuery):
     """
-    Обработчик кнопки "Расписание на текущую неделю".
+    Обработчик кнопки "На текущую неделю".
 
     1. Извлекает факультет и группу пользователя из БД.
     2. Определяет текущий маркер недели (plus / minus).
     3. Получает из таблицы Lesson все занятия для группы.
     4. Форматирует и отправляет расписание на текущую неделю.
     """
+
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        return
+
     user_id = callback.from_user.id
     try:
         async with AsyncSessionLocal() as session:
@@ -167,7 +195,8 @@ async def weekly_schedule(callback: CallbackQuery):
             lessons = lessons_query.scalars().all()
 
             if not lessons:
-                await callback.message.answer("📭 Расписание для вашей группы отсутствует.")
+                await callback.message.edit_text("📭 Расписание для вашей группы отсутствует.")
+                await callback.answer()
                 return
 
             messages = format_schedule_students(
@@ -191,13 +220,20 @@ async def weekly_schedule(callback: CallbackQuery):
 @router.callback_query(F.data == "next_week_schedule")
 async def next_week_schedule(callback: CallbackQuery):
     """
-    Обработчик кнопки "Расписание на следующую неделю".
+    Обработчик кнопки "На следующую неделю".
 
     1. Извлекает факультет и группу пользователя из БД.
     2. Определяет маркер следующей недели (plus / minus).
     3. Получает из таблицы Lesson все занятия для группы.
     4. Форматирует и отправляет расписание на следующую неделю.
     """
+
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        return
 
     user_id = callback.from_user.id
     try:
@@ -253,6 +289,14 @@ async def get_schedule_faculty(callback: CallbackQuery, state: FSMContext):
     - Если групп нет → сообщение об ошибке.
     """
 
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        await state.clear()
+        return
+
     faculty_name = abbr_faculty[callback.data.split(":")[1]]
     groups_kb = find_kb.groups_keyboards_find.get(faculty_name)
     if not groups_kb:
@@ -273,6 +317,14 @@ async def choice_type_week(callback: CallbackQuery, state: FSMContext):
     - Просит выбрать тип расписания (неделя plus/minus/full).
     """
 
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        await state.clear()
+        return
+
     group_name = callback.data.split(":")[1]
     await state.update_data(group_name=group_name)
     await state.set_state(ShowScheduleStates.choice_week)
@@ -290,6 +342,15 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
     Показывает расписание для выбранной группы и типа недели
     (чётная, нечётная, полное) с использованием общей функции форматирования.
     """
+
+    if is_sync_running():
+        await callback.message.edit_text(
+            "⏳ Просмотр расписания временно недоступен — идёт обновление данных. Пожалуйста, попробуйте позже."
+        )
+        await callback.answer()
+        await state.clear()
+        return
+
 
     state_data = await state.get_data()
     group_name = state_data.get("group_name")
@@ -320,6 +381,8 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(messages[0], parse_mode="MarkdownV2", disable_web_page_preview=True)
         for msg in messages[1:]:
             await callback.message.answer(msg.strip(), parse_mode="MarkdownV2", disable_web_page_preview=True)
+
+        await callback.answer()
 
     except Exception as e:
         logger.error(f"⚠️ Ошибка при выводе расписания для {group_name}: {e}")
