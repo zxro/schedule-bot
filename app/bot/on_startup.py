@@ -13,7 +13,6 @@ from app.utils.custom_logging.setup_log import setup_logging
 from app.database.db import checking_db
 from app.handlers.init_handlers import register_handlers
 from app.utils.schedule.auto_sync import schedule_sync_task
-from app.utils.schedule.search_professors import update_professors_cache
 from app.utils.week_mark.week_mark import init_week_mark, update_week_mark
 from app.middlewares.UserContextMiddleware import UserContextMiddleware
 
@@ -67,13 +66,6 @@ async def on_startup():
 
     asyncio.create_task(update_week_mark())
     asyncio.create_task(schedule_sync_task())
-
-    try:
-        await asyncio.wait_for(update_professors_cache(), timeout=90)
-    except asyncio.TimeoutError:
-        logger.warning("⚠️ Обновление кэша преподавателей превысило 90 секунд.")
-    except Exception as e:
-        logger.error(f"❌ Ошибка при обновлении кэша преподавателей: {e}")
 
     logger.info("✅ Бот успешно запущен")
     try:
